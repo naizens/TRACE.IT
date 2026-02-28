@@ -27,10 +27,36 @@ npm run typecheck # tsc --noEmit
 ```
 
 ### Release workflow
+
+**Every release requires updating 3 files before committing:**
+
+| File | What to change |
+|------|----------------|
+| `package.json` | `"version"` field → new version string |
+| `src/renderer/src/components/layout/TitleBar.tsx` | Hardcoded badge text `v0.0.X` (line with `v0.0.X` inside the changelog button) |
+| `src/renderer/src/components/ui/ChangelogModal.tsx` | Prepend a new entry to the `CHANGELOG` array |
+
+**ChangelogModal entry format:**
+```ts
+{
+  version: 'X.Y.Z',
+  date: 'YYYY-MM-DD',
+  changes: [
+    { type: 'feat',     text: 'Description of new feature' },
+    { type: 'perf',     text: 'Description of performance improvement' },
+    { type: 'fix',      text: 'Description of bug fix' },
+    { type: 'refactor', text: 'Description of internal improvement' },
+  ],
+},
+```
+
+**Then commit, tag, and push:**
 ```bash
-# 1. Bump version in package.json
-# 2. Commit + push
-git tag vX.Y.Z && git push --tags
+git add package.json src/renderer/src/components/layout/TitleBar.tsx src/renderer/src/components/ui/ChangelogModal.tsx [... other changed files]
+git commit -m "feat: <summary> and bump version to X.Y.Z"
+git tag vX.Y.Z
+git push origin main
+git push origin vX.Y.Z
 # GitHub Actions builds Windows + macOS installers and publishes to GitHub Releases
 ```
 
