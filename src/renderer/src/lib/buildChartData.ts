@@ -7,6 +7,7 @@ export interface LapDataset {
   borderColor: string;
   borderWidth: number;
   pointRadius: number;
+  pointHoverRadius: number;
   tension: number;
   label: string;
   stepped?: boolean | 'before' | 'middle' | 'after';
@@ -52,7 +53,7 @@ export function buildChartData(
   // x-axis upper bound: max LapDist across all referenced sessions
   let maxDist = 0;
   for (const si of usedSessionIndices) {
-    const lapDistArr = sessions[si]?.data['LapDist'] ?? [];
+    const lapDistArr = sessions[si]?.data['LapDist'] ?? new Float32Array();
     if (lapDistArr.length > 0) maxDist = Math.max(maxDist, arrayMax(lapDistArr));
   }
 
@@ -81,20 +82,20 @@ export function buildChartData(
       const s = lap.start_idx;
       const e = lap.end_idx + 1;
       const d = session.data;
-      const sessionTime = d['SessionTime'] ?? [];
+      const sessionTime = d['SessionTime'] ?? new Float32Array();
 
       return {
         color,
         sessionIdx,
         lapNum: lap.lap,
-        dist:  (d['LapDist']           ?? []).slice(s, e),
-        time:  sessionTime.slice(s, e).map((v) => v - (sessionTime[s] ?? 0)),
-        thr:   (d['Throttle']           ?? []).slice(s, e),
-        brk:   (d['Brake']              ?? []).slice(s, e),
-        spd:   (d['Speed']              ?? []).slice(s, e),
-        str:   (d['SteeringWheelAngle'] ?? []).slice(s, e),
-        gear:  (d['Gear']               ?? []).slice(s, e),
-        rpm:   (d['RPM']                ?? []).slice(s, e),
+        dist:  (d['LapDist']           ?? new Float32Array()).slice(s, e),
+        time:  sessionTime.slice(s, e).map((v) => v - sessionTime[s]),
+        thr:   (d['Throttle']           ?? new Float32Array()).slice(s, e),
+        brk:   (d['Brake']              ?? new Float32Array()).slice(s, e),
+        spd:   (d['Speed']              ?? new Float32Array()).slice(s, e),
+        str:   (d['SteeringWheelAngle'] ?? new Float32Array()).slice(s, e),
+        gear:  (d['Gear']               ?? new Float32Array()).slice(s, e),
+        rpm:   (d['RPM']                ?? new Float32Array()).slice(s, e),
       };
     })
     .filter(Boolean)
@@ -110,15 +111,16 @@ export function buildChartData(
       ? `S${lap.sessionIdx + 1}·L${lap.lapNum}`
       : `L${lap.lapNum}`;
 
-    const style: Pick<LapDataset, 'borderColor' | 'borderWidth' | 'pointRadius' | 'tension' | 'label'> = {
+    const style: Pick<LapDataset, 'borderColor' | 'borderWidth' | 'pointRadius' | 'pointHoverRadius' | 'tension' | 'label'> = {
       borderColor: LAP_COLORS[lap.color],
       borderWidth: 1,
       pointRadius: 0,
+      pointHoverRadius: 4,
       tension: 0.4,
       label,
     };
 
-    const resample = (arr: number[], mult = 1) =>
+    const resample = (arr: ArrayLike<number>, mult = 1) =>
       axis.map((x) => ({ x: Math.round(x), y: interpolate(lap.dist, arr, x) * mult }));
 
     ds.thr.push({ ...style, data: resample(lap.thr, 100) });

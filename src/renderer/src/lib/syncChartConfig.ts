@@ -35,10 +35,10 @@ export function buildZoomPlugin(id: string, zoomRef: ZoomRef) {
 }
 
 /**
- * Returns the onHover callback that syncs the crosshair tooltip and track
+ * Returns the onClick callback that pins the crosshair tooltip and track
  * marker position across all charts registered with the same useChartSync instance.
  */
-export function buildHoverHandler(id: string, hoverRef: HoverRef) {
+export function buildClickHandler(id: string, hoverRef: HoverRef) {
   return (_event: ChartEvent, elements: ActiveElement[], chart: Chart) => {
     if (!elements?.length) return;
     const index   = elements[0].index;

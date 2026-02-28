@@ -1,43 +1,106 @@
 import { useRef, useCallback } from 'react';
 import type { Chart } from 'chart.js';
+import { setPinnedCursor, clearPinnedCursor } from '../lib/chartSetup';
 
 type MapUpdateCallback = (lapDist: number) => void;
 
 /**
- * Manages cross-chart hover & zoom synchronisation without triggering
- * React re-renders — all operations go directly to Chart.js instances.
+ * Manages cross-chart click/drag sync without triggering React re-renders.
+ * All operations go directly to Chart.js instances.
  */
 export function useChartSync(onMapUpdate?: MapUpdateCallback) {
-  // Store live Chart.js instances keyed by chart id
   const charts = useRef<Record<string, Chart>>({});
+  const dragCleanups = useRef<Record<string, () => void>>({});
 
-  const register = useCallback((id: string, instance: Chart) => {
-    charts.current[id] = instance;
-  }, []);
+  /**
+   * Stable ref so drag handlers (set up inside register's closure) always
+   * call the latest handleHover without stale closure issues.
+   */
+  const syncRef = useRef<(sourceId: string, dataIndex: number, lapDist: number) => void>(
+    () => {},
+  );
 
-  const unregister = useCallback((id: string) => {
-    delete charts.current[id];
-  }, []);
-
-  /** Sync tooltip position across all other charts when one chart is hovered */
+  /**
+   * Pin cursor on click or drag: uses xScale.getPixelForValue(lapDist) so all
+   * peer charts receive correct canvas coordinates regardless of height or decimation.
+   */
   const handleHover = useCallback(
     (sourceId: string, dataIndex: number, lapDist: number) => {
-      for (const [id, chart] of Object.entries(charts.current)) {
-        if (id === sourceId || !chart) continue;
-        const meta = chart.getDatasetMeta(0);
-        const point = meta?.data?.[dataIndex];
-        if (!point) continue;
+      setPinnedCursor(dataIndex, lapDist);
+      for (const [, chart] of Object.entries(charts.current)) {
+        if (!chart) continue;
+        const xScale = chart.scales['x'];
+        if (!xScale) continue;
+        const px = xScale.getPixelForValue(lapDist);
+        const { top, bottom } = chart.chartArea;
         const activeEls = chart.data.datasets.map((_, i) => ({
           datasetIndex: i,
           index: dataIndex,
         }));
-        chart.tooltip?.setActiveElements(activeEls, { x: point.x, y: point.y });
-        chart.draw();
+        chart.tooltip?.setActiveElements(activeEls, { x: px, y: (top + bottom) / 2 });
+        chart.setActiveElements(activeEls);
+        chart.update('none');
       }
       onMapUpdate?.(lapDist);
     },
     [onMapUpdate],
   );
+
+  // Keep the ref current so drag handlers never capture a stale version.
+  syncRef.current = handleHover;
+
+  const register = useCallback((id: string, instance: Chart) => {
+    charts.current[id] = instance;
+
+    // ── Drag-to-scrub: sync cursor while holding left mouse button ────────────
+    const canvas = instance.canvas;
+    let dragging = false;
+    let rafId: number | null = null;
+
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return; // left button only
+      dragging = true;
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging) return;
+      // Throttle to one update per animation frame
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (!dragging) return;
+        const els = instance.getElementsAtEventForMode(
+          e as unknown as Event,
+          'index',
+          { intersect: false },
+          false,
+        );
+        if (!els.length) return;
+        const idx = els[0].index;
+        const lapDist = (instance.data.datasets[0]?.data[idx] as { x: number } | undefined)?.x;
+        if (lapDist !== undefined) syncRef.current(id, idx, lapDist);
+      });
+    };
+
+    const onMouseUp = () => { dragging = false; };
+
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    dragCleanups.current[id] = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
+  const unregister = useCallback((id: string) => {
+    dragCleanups.current[id]?.();
+    delete dragCleanups.current[id];
+    delete charts.current[id];
+  }, []);
 
   /** Sync X-axis zoom/pan range when one chart is zoomed */
   const handleZoom = useCallback((sourceId: string, min: number, max: number) => {
@@ -67,6 +130,7 @@ export function useChartSync(onMapUpdate?: MapUpdateCallback) {
 
   /** Set X-axis limits on all charts (called when session/data changes) */
   const updateLimits = useCallback((maxDist: number) => {
+    clearPinnedCursor();
     for (const chart of Object.values(charts.current)) {
       if (!chart) continue;
       const xScale = chart.options.scales?.['x'];

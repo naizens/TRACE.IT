@@ -34,7 +34,7 @@ type LsThreshold = typeof LS_THRESHOLDS[number];
 // ── Histogram computation ─────────────────────────────────────────────────────
 
 function buildHistogram(
-  rawMs: number[],
+  rawMs: Float32Array,
   range: RangeOption,
   binLabels: string[],
   lsThreshold: number,

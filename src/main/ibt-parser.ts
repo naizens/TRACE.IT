@@ -40,7 +40,7 @@ export interface ParsedSession {
     humidity_pct: number | null;
   };
   laps: LapInfo[];
-  data: Record<string, number[]>;
+  data: Record<string, Float32Array>;
   setup: Record<string, unknown>;
   _filename: string;
 }
@@ -153,8 +153,10 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
   }
 
   // ── Sample extraction ─────────────────────────────────────────────────────
-  const results: Record<string, number[]> = {};
-  for (const name of NEEDED_VARS) results[name] = [];
+  // Pre-allocate Float32Array per channel — ~6× less memory than number[]
+  // (avoids V8 boxing; typed arrays are released outside the managed heap).
+  const results: Record<string, Float32Array> = {};
+  for (const name of Object.keys(varMap)) results[name] = new Float32Array(numSamples);
 
   for (let s = 0; s < numSamples; s++) {
     const base = bufOffset + s * bufLen;
@@ -167,7 +169,7 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
       } else if (!Number.isInteger(val)) {
         val = Math.round(val * 10000) / 10000;
       }
-      results[name].push(val);
+      results[name][s] = val;
     }
   }
 

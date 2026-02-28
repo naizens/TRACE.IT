@@ -10,7 +10,7 @@ import { arrayMax } from '../../lib/formatters';
 import { ChartPanel } from '../telemetry/ChartPanel';
 import { useChartSync } from '../../hooks/useChartSync';
 import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
-import { buildZoomPlugin, buildHoverHandler } from '../../lib/syncChartConfig';
+import { buildZoomPlugin, buildClickHandler } from '../../lib/syncChartConfig';
 import type { HoverRef, ZoomRef } from '../../lib/syncChartConfig';
 import type { LapDataset } from '../../lib/buildChartData';
 import type { TrackMapHandle } from '../trackmap';
@@ -46,6 +46,7 @@ function createTireTempOptions(args: {
     maintainAspectRatio: false,
     animation: false,
     parsing: false,
+    events: ['click' as const],
     interaction: { mode: 'index', intersect: false },
 
     plugins: {
@@ -102,7 +103,7 @@ function createTireTempOptions(args: {
       },
     },
 
-    onHover: buildHoverHandler(id, hoverRef),
+    onClick: buildClickHandler(id, hoverRef),
   };
 }
 
@@ -165,7 +166,7 @@ export function TireTempView({ trackMapRef }: Props) {
     const usedSIs = new Set(sorted.map((e) => e.sessionIdx));
     let maxDistVal = 0;
     for (const si of usedSIs) {
-      const arr = sessions[si]?.data['LapDist'] ?? [];
+      const arr = sessions[si]?.data['LapDist'] ?? new Float32Array();
       if (arr.length > 0) maxDistVal = Math.max(maxDistVal, arrayMax(arr));
     }
 
@@ -175,15 +176,16 @@ export function TireTempView({ trackMapRef }: Props) {
     const cornerDatasets = CORNERS.map(({ keys }) => {
       const datasets: LapDataset[] = [];
       for (const { color, sessionIdx, lapNum, lap, sess } of sorted) {
-        const dist     = (sess.data['LapDist'] ?? []).slice(lap.start_idx, lap.end_idx + 1);
+        const dist     = (sess.data['LapDist'] ?? new Float32Array()).slice(lap.start_idx, lap.end_idx + 1);
         const lapLabel = multiSession ? `S${sessionIdx + 1}·L${lapNum}` : `L${lapNum}`;
 
         keys.forEach((key, pi) => {
-          const raw = (sess.data[key] ?? []).slice(lap.start_idx, lap.end_idx + 1);
+          const raw = (sess.data[key] ?? new Float32Array()).slice(lap.start_idx, lap.end_idx + 1);
           datasets.push({
             borderColor: LAP_COLORS[color],
             borderWidth: 1,
             pointRadius: 0,
+            pointHoverRadius: 4,
             tension: 0,
             normalized: true,
             label: `${lapLabel} ${POS_LABELS[pi]}`,

@@ -20,7 +20,7 @@ export interface ParsedSession {
   meta: SessionMeta;
   laps: LapInfo[];
   /** Telemetry channel arrays, keyed by iRacing variable name */
-  data: Record<string, number[]>;
+  data: Record<string, Float32Array>;
   /** CarSetup YAML section as a nested object */
   setup: Record<string, unknown>;
   /** Filename without extension, used as display label */

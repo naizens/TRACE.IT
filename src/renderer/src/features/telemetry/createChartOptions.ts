@@ -1,5 +1,5 @@
 import type { ChartOptions } from 'chart.js';
-import { buildZoomPlugin, buildHoverHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
+import { buildZoomPlugin, buildClickHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
 
 interface CreateChartOptionsArgs {
   id: string;
@@ -26,6 +26,7 @@ export function createChartOptions({
     maintainAspectRatio: false,
     animation: false,
     parsing: false,
+    events: ['click' as const],
     interaction: { mode: 'index', intersect: false },
 
     plugins: {
@@ -93,7 +94,7 @@ export function createChartOptions({
       },
     },
 
-    // Shared hover handler — syncs crosshair + track marker across all charts
-    onHover: buildHoverHandler(id, hoverRef),
+    // Click handler — pins crosshair + track marker across all charts
+    onClick: buildClickHandler(id, hoverRef),
   };
 }

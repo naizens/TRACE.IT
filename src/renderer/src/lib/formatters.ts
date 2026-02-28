@@ -13,14 +13,14 @@ export function formatDelta(delta: number): string {
 }
 
 /** Loop-safe max for very large arrays (avoids Math.max(...bigArray) stack overflow) */
-export function arrayMax(arr: number[]): number {
+export function arrayMax(arr: ArrayLike<number>): number {
   let m = arr[0];
   for (let i = 1; i < arr.length; i++) if (arr[i] > m) m = arr[i];
   return m;
 }
 
 /** Loop-safe min */
-export function arrayMin(arr: number[]): number {
+export function arrayMin(arr: ArrayLike<number>): number {
   let m = arr[0];
   for (let i = 1; i < arr.length; i++) if (arr[i] < m) m = arr[i];
   return m;

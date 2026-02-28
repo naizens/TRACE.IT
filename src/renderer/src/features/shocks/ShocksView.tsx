@@ -8,7 +8,7 @@ import { interpolate } from '../../lib/interpolate';
 import { arrayMax } from '../../lib/formatters';
 import { useChartSync } from '../../hooks/useChartSync';
 import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
-import { buildZoomPlugin, buildHoverHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
+import { buildZoomPlugin, buildClickHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
 import type { TrackMapHandle } from '../trackmap';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -124,6 +124,7 @@ function createShockOptions(
     maintainAspectRatio: false,
     animation: false,
     parsing: false,
+    events: ['click' as const],
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: false },
@@ -166,7 +167,7 @@ function createShockOptions(
         border: { display: false },
       },
     },
-    onHover: buildHoverHandler(id, hoverRef),
+    onClick: buildClickHandler(id, hoverRef),
   };
 }
 
@@ -191,7 +192,7 @@ function buildShockData(
   );
   let maxDist = 0;
   for (const si of usedSessions) {
-    const arr = sessions[si]?.data[CH.lapDist] ?? [];
+    const arr = sessions[si]?.data[CH.lapDist] ?? new Float32Array();
     if (arr.length > 0) maxDist = Math.max(maxDist, arrayMax(arr));
   }
   if (maxDist === 0) return null;
@@ -224,18 +225,19 @@ function buildShockData(
     const e = lap.end_idx + 1;
     const d = sess.data;
 
-    const dist = (d[CH.lapDist] ?? []).slice(s, e);
-    const lf   = (d[CH.lf]      ?? []).slice(s, e);
-    const rf   = (d[CH.rf]      ?? []).slice(s, e);
-    const lr   = (d[CH.lr]      ?? []).slice(s, e);
-    const rr   = (d[CH.rr]      ?? []).slice(s, e);
+    const dist = (d[CH.lapDist] ?? new Float32Array()).slice(s, e);
+    const lf   = (d[CH.lf]      ?? new Float32Array()).slice(s, e);
+    const rf   = (d[CH.rf]      ?? new Float32Array()).slice(s, e);
+    const lr   = (d[CH.lr]      ?? new Float32Array()).slice(s, e);
+    const rr   = (d[CH.rr]      ?? new Float32Array()).slice(s, e);
 
-    const resample = (arr: number[]) =>
+    const resample = (arr: ArrayLike<number>) =>
       axis.map((x) => ({ x: Math.round(x), y: interpolate(dist, arr, x) * MM }));
 
     const baseStyle = {
       borderWidth: 1,
       pointRadius: 0,
+      pointHoverRadius: 4,
       tension: 0,
       normalized: true,
     } as const;
