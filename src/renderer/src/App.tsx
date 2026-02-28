@@ -10,6 +10,7 @@ import { RideHeightView } from './features/rideheight/RideHeightView';
 import { TireTempView } from './features/tiretemp/TireTempView';
 import { ShocksView } from './features/shocks/ShocksView';
 import type { TrackMapHandle } from './features/trackmap';
+import { UpdateBanner } from './components/ui/UpdateBanner';
 
 export function App() {
   const activeTab   = useStore((s) => s.activeTab);
@@ -41,6 +42,7 @@ export function App() {
         {sessions.length === 0 && <DropZone />}
       </div>
 
+      <UpdateBanner />
     </div>
   );
 }

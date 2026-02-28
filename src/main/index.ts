@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import { join } from 'path';
 import { readFileSync } from 'fs';
+import { autoUpdater } from 'electron-updater';
 import { parseIbt } from './ibt-parser';
 
 // Module-level reference so IPC handlers can reach the window
@@ -42,6 +43,17 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+
+  if (app.isPackaged) {
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = false;
+
+    autoUpdater.on('update-downloaded', () => {
+      mainWindow?.webContents.send('update:downloaded');
+    });
+
+    autoUpdater.checkForUpdates();
+  }
 });
 
 app.on('window-all-closed', () => {
@@ -55,6 +67,7 @@ ipcMain.on('window:maximize', () => {
   mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
 });
 ipcMain.on('window:close', () => mainWindow?.close());
+ipcMain.on('update:install', () => autoUpdater.quitAndInstall());
 
 // Sync query: renderer asks current maximised state on mount
 ipcMain.handle('window:is-maximized', () => mainWindow?.isMaximized() ?? false);

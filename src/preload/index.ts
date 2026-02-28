@@ -11,6 +11,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   platform: process.platform,
 
+  // ── Auto-updater ─────────────────────────────────────────────────────────
+  updates: {
+    onUpdateDownloaded: (cb: () => void) => {
+      const handler = () => cb();
+      ipcRenderer.on('update:downloaded', handler);
+      return () => ipcRenderer.off('update:downloaded', handler);
+    },
+    installNow: () => ipcRenderer.send('update:install'),
+  },
+
   // ── Window controls ─────────────────────────────────────────────────────
   windowControls: {
     minimize: ()                           => ipcRenderer.send('window:minimize'),
@@ -40,6 +50,10 @@ export interface ElectronAPI {
   parseIbtBuffers: (files: Array<{ name: string; data: ArrayBuffer }>) => Promise<ParsedSession[] | null>;
   platform: string;
   windowControls: WindowControls;
+  updates: {
+    onUpdateDownloaded: (cb: () => void) => () => void;
+    installNow: () => void;
+  };
 }
 
 declare global {
