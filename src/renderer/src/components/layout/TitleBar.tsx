@@ -7,6 +7,7 @@ import {
   ArrowsPointingInIcon,
   XMarkIcon,
 } from '@heroicons/react/16/solid';
+import { ChangelogModal } from '../ui/ChangelogModal';
 
 // ── Tab types ────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ export function TitleBar() {
   const setActiveTab = useStore((s) => s.setActiveTab);
 
   const [isMaximized, setIsMaximized] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   useEffect(() => {
     window.electronAPI.windowControls.isMaximized().then(setIsMaximized);
@@ -36,6 +38,7 @@ export function TitleBar() {
   const { minimize, maximize, close } = window.electronAPI.windowControls;
 
   return (
+    <>
     <header
       className="flex h-9 flex-shrink-0 items-stretch bg-[#0c0c0e] border-b border-border select-none"
       style={{ WebkitAppRegion: 'drag' }}
@@ -78,6 +81,17 @@ export function TitleBar() {
       {/* ── Drag spacer ──────────────────────────────────────────────────── */}
       <div className="flex-1" />
 
+      {/* ── Changelog button ─────────────────────────────────────────────── */}
+      <div className="flex items-center pr-2 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
+        <button
+          onClick={() => setChangelogOpen(true)}
+          title="Changelog"
+          className="flex items-center px-2 py-0.5 rounded text-[10px] font-mono text-muted hover:text-text hover:bg-surface-2 transition-colors cursor-pointer"
+        >
+          v0.0.7
+        </button>
+      </div>
+
       {/* ── Window controls ──────────────────────────────────────────────── */}
       <div
         className="flex items-stretch shrink-0"
@@ -98,6 +112,9 @@ export function TitleBar() {
         </WinButton>
       </div>
     </header>
+
+    <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+    </>
   );
 }
 
