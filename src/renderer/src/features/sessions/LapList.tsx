@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CheckIcon } from '@heroicons/react/16/solid';
 import { useStore } from '../../store/useStore';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
 import { formatLapTime } from '../../lib/formatters';
@@ -140,15 +141,10 @@ export function LapList() {
                           }}
                         >
                           {isActive && (
-                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                              <polyline
-                                points="1,4 3,6.5 7,1.5"
-                                stroke={LAP_COLORS[color]}
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
+                            <CheckIcon
+                              className="w-2.5 h-2.5"
+                              style={{ color: LAP_COLORS[color] }}
+                            />
                           )}
                         </button>
                       );

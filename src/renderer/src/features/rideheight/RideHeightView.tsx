@@ -7,8 +7,9 @@ import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
 import { interpolate } from '../../lib/interpolate';
 import { arrayMax } from '../../lib/formatters';
 import { useChartSync } from '../../hooks/useChartSync';
+import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
 import { buildZoomPlugin, buildHoverHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
-import type { TrackMapHandle } from '../trackmap/TrackMap';
+import type { TrackMapHandle } from '../trackmap';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -287,9 +288,7 @@ export function RideHeightView({ trackMapRef }: Props) {
   const sessions   = useStore((s) => s.sessions);
   const selections = useStore((s) => s.selections);
 
-  const onMapUpdate = useCallback((lapDist: number) => {
-    trackMapRef.current?.updateMarker(lapDist);
-  }, [trackMapRef]);
+  const onMapUpdate = useTrackMapUpdate(trackMapRef);
 
   const { register, unregister, handleZoom, handleHover, handleReset, updateLimits } = useChartSync(onMapUpdate);
 

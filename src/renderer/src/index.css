@@ -37,6 +37,11 @@ html, body, #root {
 ::-webkit-scrollbar-thumb      { background: var(--color-border); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover{ background: #3f3f46; }
 
+/* ── Hide number input spinners ───────────────────────────────────────────── */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
 /* ── Chart.js canvas must fill its container absolutely ──────────────────── */
 .chart-container canvas {
   position: absolute !important;

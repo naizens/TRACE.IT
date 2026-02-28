@@ -1,12 +1,14 @@
 import { useRef, useMemo, useEffect, useCallback } from 'react';
+import { ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import type { RefObject } from 'react';
 import { useStore } from '../../store/useStore';
 import { CHART_CONFIGS } from '../../lib/constants';
-import { buildChartData } from './utils/buildChartData';
-import { createChartOptions } from './utils/createChartOptions';
+import { buildChartData } from '../../lib/buildChartData';
+import { createChartOptions } from './createChartOptions';
 import { useChartSync } from '../../hooks/useChartSync';
+import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
 import { ChartPanel } from './ChartPanel';
-import type { TrackMapHandle } from '../trackmap/TrackMap';
+import type { TrackMapHandle } from '../trackmap';
 import type { Chart } from 'chart.js';
 
 interface Props {
@@ -18,9 +20,7 @@ export function TelemetryView({ trackMapRef }: Props) {
   const selections = useStore((s) => s.selections);
   const session    = sessions[0] ?? null;
 
-  const onMapUpdate = useCallback((lapDist: number) => {
-    trackMapRef.current?.updateMarker(lapDist);
-  }, [trackMapRef]);
+  const onMapUpdate = useTrackMapUpdate(trackMapRef);
 
   // ── Chart sync ────────────────────────────────────────────────────────────
   const { register, unregister, handleHover, handleZoom, handleReset, updateLimits } =
@@ -69,11 +69,7 @@ export function TelemetryView({ trackMapRef }: Props) {
   if (!session) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted select-none">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.4">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
+        <ArrowUpTrayIcon className="w-10 h-10 opacity-40" />
         <p className="text-xs tracking-wider uppercase">Open an IBT file to begin</p>
       </div>
     );

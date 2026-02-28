@@ -1,7 +1,7 @@
-import type { ParsedSession, LapSelections } from '../../../types/session';
-import { LAP_COLORS, COLOR_ORDER } from '../../../lib/constants';
-import { interpolate } from '../../../lib/interpolate';
-import { arrayMax } from '../../../lib/formatters';
+import type { ParsedSession, LapSelections } from '../types/session';
+import { LAP_COLORS, COLOR_ORDER } from './constants';
+import { interpolate } from './interpolate';
+import { arrayMax } from './formatters';
 
 export interface LapDataset {
   borderColor: string;

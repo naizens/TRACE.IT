@@ -1,4 +1,5 @@
-import { useRef, useMemo, useCallback, useEffect } from 'react';
+import { useRef, useMemo, useCallback, useEffect, useState } from 'react';
+import { ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 import type { RefObject } from 'react';
 import type { ChartOptions } from 'chart.js';
 import type { Chart } from 'chart.js';
@@ -8,10 +9,11 @@ import { interpolate } from '../../lib/interpolate';
 import { arrayMax } from '../../lib/formatters';
 import { ChartPanel } from '../telemetry/ChartPanel';
 import { useChartSync } from '../../hooks/useChartSync';
+import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
 import { buildZoomPlugin, buildHoverHandler } from '../../lib/syncChartConfig';
 import type { HoverRef, ZoomRef } from '../../lib/syncChartConfig';
-import type { LapDataset } from '../telemetry/utils/buildChartData';
-import type { TrackMapHandle } from '../trackmap/TrackMap';
+import type { LapDataset } from '../../lib/buildChartData';
+import type { TrackMapHandle } from '../trackmap';
 
 // ── Corner / position definitions ────────────────────────────────────────────
 
@@ -35,8 +37,10 @@ function createTireTempOptions(args: {
   id: string;
   hoverRef: HoverRef;
   zoomRef: ZoomRef;
+  yMin: number;
+  yMax: number;
 }): ChartOptions<'line'> {
-  const { id, hoverRef, zoomRef } = args;
+  const { id, hoverRef, zoomRef, yMin, yMax } = args;
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -84,8 +88,8 @@ function createTireTempOptions(args: {
         border: { display: false },
       },
       y: {
-        min: 40,
-        max: 130,
+        min: yMin,
+        max: yMax,
         ticks: {
           color: '#52525b',
           font: { size: 8 },
@@ -113,9 +117,12 @@ export function TireTempView({ trackMapRef }: Props) {
   const selections = useStore((s) => s.selections);
   const session    = sessions[0] ?? null;
 
-  const onMapUpdate = useCallback((lapDist: number) => {
-    trackMapRef.current?.updateMarker(lapDist);
-  }, [trackMapRef]);
+  const [yMin, setYMin] = useState(20);
+  const [yMax, setYMax] = useState(140);
+
+  const TEMP_STEPS = Array.from({ length: 13 }, (_, i) => 20 + i * 10); // 20..140
+
+  const onMapUpdate = useTrackMapUpdate(trackMapRef);
 
   const { register, unregister, handleHover, handleZoom, handleReset, updateLimits } =
     useChartSync(onMapUpdate);
@@ -125,11 +132,11 @@ export function TireTempView({ trackMapRef }: Props) {
   hoverRef.current = handleHover;
   zoomRef.current  = handleZoom;
 
-  // Options created once per corner (stable, callbacks go through refs)
+  // Options recreated when Y range changes; hover/zoom callbacks stay stable via refs
   const chartOptions = useMemo(
-    () => CORNERS.map((c) => createTireTempOptions({ id: c.id, hoverRef, zoomRef })),
+    () => CORNERS.map((c) => createTireTempOptions({ id: c.id, hoverRef, zoomRef, yMin, yMax })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+    [yMin, yMax],
   );
 
   // ── Dataset building ──────────────────────────────────────────────────────
@@ -206,11 +213,7 @@ export function TireTempView({ trackMapRef }: Props) {
   if (!session) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted select-none">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" opacity="0.4">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
+        <ArrowUpTrayIcon className="w-10 h-10 opacity-40" />
         <p className="text-xs tracking-wider uppercase">Open an IBT file to begin</p>
       </div>
     );
@@ -236,6 +239,27 @@ export function TireTempView({ trackMapRef }: Props) {
             Tire Temperatures
           </span>
           <span className="text-[10px] text-muted">· °C</span>
+        </div>
+
+        {/* Y-axis range selectors */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-muted uppercase tracking-wider">Y</span>
+          <select
+            value={yMin}
+            onChange={(e) => setYMin(Number(e.target.value))}
+            className="px-1.5 py-0.5 text-[10px] bg-surface-2 border border-border rounded text-text focus:outline-none focus:border-accent cursor-pointer"
+          >
+            {TEMP_STEPS.map((v) => <option key={v} value={v}>{v}°</option>)}
+          </select>
+          <span className="text-[10px] text-muted">–</span>
+          <select
+            value={yMax}
+            onChange={(e) => setYMax(Number(e.target.value))}
+            className="px-1.5 py-0.5 text-[10px] bg-surface-2 border border-border rounded text-text focus:outline-none focus:border-accent cursor-pointer"
+          >
+            {TEMP_STEPS.map((v) => <option key={v} value={v}>{v}°</option>)}
+          </select>
+          <span className="text-[10px] text-muted">°C</span>
         </div>
 
         {/* Dash-pattern legend */}

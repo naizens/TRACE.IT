@@ -1,5 +1,5 @@
 import type { ChartOptions } from 'chart.js';
-import { buildZoomPlugin, buildHoverHandler, type HoverRef, type ZoomRef } from '../../../lib/syncChartConfig';
+import { buildZoomPlugin, buildHoverHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
 
 interface CreateChartOptionsArgs {
   id: string;

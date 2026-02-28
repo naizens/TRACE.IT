@@ -1,70 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import type { Tab } from '../../store/useStore';
-
-// ── Window control icons ─────────────────────────────────────────────────────
-// All use a 16×16 viewport, 1.5px stroke, round caps — rendered at 12×12 px.
-
-function IconMinimize() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <line
-        x1="3" y1="8" x2="13" y2="8"
-        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconMaximize() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      {/* Rounded square — conveys "window" / expand */}
-      <rect x="2.75" y="2.75" width="10.5" height="10.5" rx="2.25"
-        stroke="currentColor" strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-
-function IconRestore() {
-  // SVG mask cuts the front window out of the back window so the overlap
-  // area is invisible, giving the classic two-windows restore look.
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <defs>
-        <mask id="wc-restore-mask">
-          {/* Everything visible by default */}
-          <rect width="16" height="16" fill="white" />
-          {/* Knock out the area the front window occupies */}
-          <rect x="1.75" y="4.75" width="9.5" height="9.5" rx="1.5" fill="black" />
-        </mask>
-      </defs>
-      {/* Back window — only visible outside the front window's footprint */}
-      <rect
-        x="4.75" y="1.75" width="9.5" height="9.5" rx="1.5"
-        stroke="currentColor" strokeWidth="1.5"
-        mask="url(#wc-restore-mask)"
-      />
-      {/* Front window — fully visible */}
-      <rect
-        x="1.75" y="4.75" width="9.5" height="9.5" rx="1.5"
-        stroke="currentColor" strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-
-function IconClose() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M3.5 3.5 L12.5 12.5 M12.5 3.5 L3.5 12.5"
-        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+import {
+  MinusIcon,
+  ArrowsPointingOutIcon,
+  ArrowsPointingInIcon,
+  XMarkIcon,
+} from '@heroicons/react/16/solid';
 
 // ── Tab types ────────────────────────────────────────────────────────────────
 
@@ -72,6 +14,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'telemetry',  label: 'Telemetry'    },
   { id: 'setup',      label: 'Car Setup'    },
   { id: 'damper',     label: 'Damper'       },
+  { id: 'shocks',     label: 'Shocks'       },
   { id: 'rideheight', label: 'Ride Heights' },
   { id: 'tiretemp',   label: 'Tire Temps'   },
 ];
@@ -141,15 +84,17 @@ export function TitleBar() {
         style={{ WebkitAppRegion: 'no-drag' }}
       >
         <WinButton onClick={minimize} label="Minimize">
-          <IconMinimize />
+          <MinusIcon className="w-3 h-3" />
         </WinButton>
 
         <WinButton onClick={maximize} label={isMaximized ? 'Restore' : 'Maximize'}>
-          {isMaximized ? <IconRestore /> : <IconMaximize />}
+          {isMaximized
+            ? <ArrowsPointingInIcon className="w-3 h-3" />
+            : <ArrowsPointingOutIcon className="w-3 h-3" />}
         </WinButton>
 
         <WinButton onClick={close} label="Close" danger>
-          <IconClose />
+          <XMarkIcon className="w-3 h-3" />
         </WinButton>
       </div>
     </header>

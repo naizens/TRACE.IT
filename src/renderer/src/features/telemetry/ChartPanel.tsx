@@ -1,7 +1,7 @@
 import { useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Line } from 'react-chartjs-2';
 import type { ChartOptions } from 'chart.js';
-import type { LapDataset } from './utils/buildChartData';
+import type { LapDataset } from '../../lib/buildChartData';
 
 export interface ChartPanelHandle {
   resetZoom: () => void;
