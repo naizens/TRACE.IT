@@ -84,3 +84,17 @@ ipcMain.handle('open-ibt-files', async () => {
 
   return results.length > 0 ? results : null;
 });
+
+// ── Drag-and-drop parsing (raw buffers from renderer drag events) ─────────────
+ipcMain.handle('parse-ibt-buffers', async (_, files: Array<{ name: string; data: ArrayBuffer }>) => {
+  const results = [];
+  for (const file of files) {
+    try {
+      const parsed = parseIbt(Buffer.from(file.data), file.name);
+      results.push(parsed);
+    } catch (err) {
+      console.error(`[main] Failed to parse ${file.name}:`, (err as Error).message);
+    }
+  }
+  return results.length > 0 ? results : null;
+});

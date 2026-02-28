@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openIbtFiles: (): Promise<ParsedSession[] | null> =>
     ipcRenderer.invoke('open-ibt-files'),
 
+  parseIbtBuffers: (files: Array<{ name: string; data: ArrayBuffer }>): Promise<ParsedSession[] | null> =>
+    ipcRenderer.invoke('parse-ibt-buffers', files),
+
   platform: process.platform,
 
   // ── Window controls ─────────────────────────────────────────────────────
@@ -34,6 +37,7 @@ export interface WindowControls {
 
 export interface ElectronAPI {
   openIbtFiles: () => Promise<ParsedSession[] | null>;
+  parseIbtBuffers: (files: Array<{ name: string; data: ArrayBuffer }>) => Promise<ParsedSession[] | null>;
   platform: string;
   windowControls: WindowControls;
 }
