@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+/* ── Design tokens ────────────────────────────────────────────────────────── */
+@theme {
+  --color-bg:         #09090b;  /* zinc-950  – main background           */
+  --color-surface:    #111113;  /* slightly elevated panels              */
+  --color-surface-2:  #1c1c1f;  /* hover / active states                 */
+  --color-border:     #27272a;  /* zinc-800  – dividers & outlines       */
+  --color-muted:      #71717a;  /* zinc-500  – secondary labels          */
+  --color-text:       #f4f4f5;  /* zinc-100  – primary text              */
+  --color-accent:     #00ff88;  /* brand green                           */
+
+  /* Lap comparison colours  */
+  --color-lap-ref:    #ffffff;
+  --color-lap-blue:   #38bdf8;  /* sky-400   */
+  --color-lap-pink:   #e879f9;  /* fuchsia-400 */
+  --color-lap-lime:   #a3e635;  /* lime-400  */
+}
+
+/* ── Base reset ───────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar – thin & themed ────────────────────────────────────────────── */
+::-webkit-scrollbar            { width: 4px; height: 4px; }
+::-webkit-scrollbar-track      { background: transparent; }
+::-webkit-scrollbar-thumb      { background: var(--color-border); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover{ background: #3f3f46; }
+
+/* ── Chart.js canvas must fill its container absolutely ──────────────────── */
+.chart-container canvas {
+  position: absolute !important;
+  inset: 0;
+  width:  100% !important;
+  height: 100% !important;
+  touch-action: none;
+}
