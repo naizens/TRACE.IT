@@ -5,26 +5,32 @@ import {
   forwardRef,
   useImperativeHandle,
 } from 'react';
+import type { RefObject } from 'react';
 import type { ParsedSession } from '../../types/session';
+import type { TelemetryBarHandle, TelemetryInputs } from './TelemetryBar';
+
+export type { TelemetryInputs };
 
 export interface TrackMapHandle {
-  updateMarker: (lapDist: number) => void;
+  updateMarker: (lapDist: number, inputs?: TelemetryInputs) => void;
 }
 
 interface TrackData {
-  xs:    number[];
-  ys:    number[];
-  dists: number[];
+  xs:       number[];
+  ys:       number[];
+  dists:    number[];
+  startIdx: number;
 }
 
 interface Props {
-  session: ParsedSession | null;
+  session:      ParsedSession | null;
+  telemetryRef?: RefObject<TelemetryBarHandle>;
 }
 
-export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => {
-  const canvasRef   = useRef<HTMLCanvasElement>(null);
-  const trackRef    = useRef<TrackData | null>(null);
-  const markerRef   = useRef<number | undefined>(undefined);
+export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryRef }, ref) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const trackRef  = useRef<TrackData | null>(null);
+  const markerRef = useRef<number | undefined>(undefined);
 
   // ── Build dead-reckoning track from Speed + Yaw ───────────────────────────
   useEffect(() => {
@@ -37,7 +43,6 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
     const spd = session.data['Speed'];
     if (!yaw?.length || !spd?.length) { redraw(); return; }
 
-    // Use the first timed lap; fallback to first lap
     const lap = session.laps.find((l) => l.lap_time_s > 0) ?? session.laps[0];
     if (!lap) { redraw(); return; }
 
@@ -59,7 +64,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
     }
 
     if (isNaN(xs[xs.length - 1])) { redraw(); return; }
-    trackRef.current = { xs, ys, dists };
+    trackRef.current = { xs, ys, dists, startIdx: s };
     redraw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
@@ -73,7 +78,6 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
     const H = parent.clientHeight || 400;
     if (W < 2 || H < 2) return;
 
-    // Resize canvas pixel buffer if needed
     if (canvas.width !== W || canvas.height !== H) {
       canvas.width  = W;
       canvas.height = H;
@@ -87,7 +91,6 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
 
     const { xs, ys, dists } = track;
 
-    // Bounding box — avoid spread on large arrays (stack overflow risk)
     let minX = xs[0], maxX = xs[0], minY = ys[0], maxY = ys[0];
     for (let i = 1; i < xs.length; i++) {
       if (xs[i] < minX) minX = xs[i]; else if (xs[i] > maxX) maxX = xs[i];
@@ -102,7 +105,6 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
     const px = (v: number) => pad + (v - minX) * scale;
     const py = (v: number) => H - pad - (v - minY) * scale;
 
-    // Track outline (thick dark) + surface (thinner grey)
     ctx.beginPath();
     ctx.moveTo(px(xs[0]), py(ys[0]));
     for (let i = 1; i < xs.length; i++) ctx.lineTo(px(xs[i]), py(ys[i]));
@@ -114,7 +116,6 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
     ctx.strokeStyle = '#3f3f46';
     ctx.stroke();
 
-    // Marker dot (binary search for nearest dist index)
     const md = markerDist ?? markerRef.current;
     if (md !== undefined) {
       let lo = 0, hi = dists.length - 1;
@@ -132,7 +133,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
     }
   }, []);
 
-  // ── Handle container resize via ResizeObserver ────────────────────────────
+  // ── ResizeObserver ────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -141,20 +142,40 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session }, ref) => 
     return () => ro.disconnect();
   }, [redraw]);
 
-  // ── Imperative handle exposed to TelemetryView ────────────────────────────
+  // ── Imperative handle ─────────────────────────────────────────────────────
   useImperativeHandle(ref, () => ({
-    updateMarker(lapDist: number) {
+    updateMarker(lapDist: number, inputs?: TelemetryInputs) {
       markerRef.current = lapDist;
       redraw(lapDist);
-    },
-  }), [redraw]);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full"
-    />
-  );
+      if (inputs) {
+        telemetryRef?.current?.update(inputs);
+      } else {
+        // Fallback: read from the track-map reference lap
+        const track = trackRef.current;
+        if (!track || !session) return;
+
+        let lo = 0, hi = track.dists.length - 1;
+        while (lo < hi) {
+          const m = (lo + hi) >> 1;
+          if (track.dists[m] < lapDist) lo = m + 1; else hi = m;
+        }
+        const idx = track.startIdx + lo;
+        const d   = session.data;
+
+        telemetryRef?.current?.update({
+          throttle: Math.round((d['Throttle']?.[idx] ?? 0) * 100),
+          brake:    Math.round((d['Brake']?.[idx]    ?? 0) * 100),
+          gear:     d['Gear']?.[idx] ?? 0,
+          speedKph: Math.round((d['Speed']?.[idx]    ?? 0) * 3.6),
+          steerDeg: d['SteeringWheelAngle']?.[idx]   ?? 0,
+        });
+      }
+    },
+  }), [redraw, session, telemetryRef]);
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
 });
 
 TrackMap.displayName = 'TrackMap';
