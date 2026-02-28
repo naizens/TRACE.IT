@@ -19,4 +19,4 @@ jobs:
       - run: npm ci
       - run: npm run dist -- --publish always
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
