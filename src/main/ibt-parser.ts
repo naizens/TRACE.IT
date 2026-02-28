@@ -76,6 +76,8 @@ const NEEDED_VARS = new Set([
   'Yaw',
   // Shock / damper velocities (m/s) — used for damper histograms
   'LFshockVel', 'RFshockVel', 'LRshockVel', 'RRshockVel',
+  // Shock deflections (m) — used for shock deflection view
+  'LFshockDefl', 'RFshockDefl', 'LRshockDefl', 'RRshockDefl',
   // Weather
   'AirTemp', 'TrackTemp',
 ]);
