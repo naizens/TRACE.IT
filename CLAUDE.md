@@ -1,0 +1,148 @@
+# CLAUDE.md — TRACE.IT Telemetry Tool
+
+## Project Overview
+iRacing telemetry analysis desktop app — **Electron + electron-vite + React + Tailwind V4 + TypeScript**.
+IBT binary files are parsed in the Electron **main process** (Node.js) and sent to the renderer via IPC. No JSON file I/O — everything is in-memory.
+
+---
+
+## Tech Stack
+| | |
+|---|---|
+| Runtime | Electron 33 + electron-vite 2 |
+| UI | React 18 + TypeScript 5 |
+| Styling | **Tailwind CSS v4** — CSS-first, `@tailwindcss/vite` plugin, **no tailwind.config file** |
+| State | **Zustand 5** |
+| Charts | Chart.js 4 + react-chartjs-2 5 + chartjs-plugin-zoom 2 + hammerjs |
+
+---
+
+## Dev Commands
+```bash
+npm run dev       # electron-vite dev server (hot-reload renderer + Electron)
+npm run build     # compile to out/
+npm run dist      # build + package installer → release/
+npm run typecheck # tsc --noEmit
+```
+
+---
+
+## Folder Structure
+```
+src/
+  main/
+    index.ts           — Electron main process, IPC handler (open-ibt-files)
+    ibt-parser.ts      — Binary IBT parser, returns ParsedSession
+  preload/
+    index.ts           — contextBridge: exposes window.electronAPI
+  renderer/src/
+    App.tsx            — root, tab routing
+    main.tsx, index.css, env.d.ts
+    types/session.ts   — ParsedSession, LapInfo, SessionMeta, LapColor, LapSelections
+    store/useStore.ts  — Zustand store: sessions[], selections{}, activeTab
+    lib/
+      constants.ts     — LAP_COLORS, COLOR_ORDER, CHART_CONFIGS
+      interpolate.ts   — binary-search linear interpolation
+      formatters.ts    — formatLapTime, arrayMax, arrayMin
+      chartSetup.ts    — Chart.js global register + SyncCursor plugin
+    components/
+      ui/Button.tsx
+      layout/Sidebar.tsx
+    features/
+      sessions/        — SessionList.tsx, LapList.tsx (hover tooltip)
+      telemetry/       — TelemetryView, ChartPanel, useChartSync, buildChartData, createChartOptions
+      rideheight/      — RideHeightView.tsx
+      tiretemp/        — TireTempView.tsx
+      damper/          — DamperView.tsx
+      setup/           — SetupView.tsx
+      trackmap/        — TrackMap.tsx
+```
+
+---
+
+## Key Architecture Decisions
+
+### IBT Parser (main process)
+- Runs in `src/main/ibt-parser.ts` — Node.js only, never imported by renderer
+- IPC channel: `open-ibt-files` → returns `ParsedSession[]`
+- Only channels in `NEEDED_VARS` Set are extracted; adding new channels = add to that Set
+
+### IBT Header Offsets (verified)
+| Field | Offset |
+|-------|--------|
+| tickRate | 8 |
+| sessionInfoLen | 16 |
+| sessionInfoOffset | 20 |
+| numVars | 24 |
+| varHeaderOffset | 28 |
+| bufLen | 36 |
+| varBuf[0].bufOffset | 52 |
+| numSamples | 140 |
+
+Variable descriptor: 144 bytes — type@+0, offset@+4, count@+8, name@+16 (char[32], ASCII, null-terminated).
+
+### Session YAML (embedded in IBT)
+- iRacing's YAML uses non-standard `;` inline comments — **do not use `yaml.load` for simple scalar fields**, use regex instead
+- `CarSetup:` block is safe to parse with `yaml.load` (no `;` comments there)
+- Humidity lives in the YAML under `RelativeHumidity:` — extracted via regex, stored in `meta.humidity_pct`
+- Pattern: `str.match(/RelativeHumidity:\s*(\d+(?:\.\d+)?)/)`
+
+### Chart Sync (zero re-renders)
+- Sync is fully **imperative** — direct Chart.js API calls on hover/zoom, no React state updates
+- Chart options created once via `useMemo([])` — hover/zoom callbacks read values from **mutable refs** to avoid stale closures
+- SyncCursor plugin registered globally in `lib/chartSetup.ts`
+
+### Track Map
+- Canvas-based, dead reckoning: `x += Speed * cos(Yaw) * dt`, `y += Speed * sin(Yaw) * dt`
+- Exposes imperative `updateMarker(dist)` via `forwardRef` / `useImperativeHandle`
+
+### Multiple Sessions
+- `sessions[0]` = primary session (green indicator)
+- Telemetry and track map use only `sessions[0]`; Setup tab compares all sessions
+
+---
+
+## Tailwind V4 Custom Tokens
+Defined in `src/renderer/src/index.css`:
+
+| CSS Variable | Tailwind Class |
+|---|---|
+| `--color-bg` | `bg-bg` |
+| `--color-surface` | `bg-surface` |
+| `--color-surface-2` | `bg-surface-2` |
+| `--color-border` | `border-border` |
+| `--color-muted` | `text-muted` |
+| `--color-text` | `text-text` |
+| `--color-accent` | `text-accent` / `bg-accent` |
+
+Use canonical Tailwind V4 class names — e.g. `shrink-0` not `flex-shrink-0`.
+
+---
+
+## Available IBT Channels (confirmed from real file)
+
+### Currently Extracted (NEEDED_VARS)
+`SessionTime`, `Lap`, `LapDist`, `Throttle`, `Brake`, `SteeringWheelAngle`, `Speed`, `LapLastLapTime`, `Gear`, `RPM`, `FuelLevel`, `DcBrakeBias`, `LFpressure`, `RFpressure`, `LRpressure`, `RRpressure`, `LFtempL/M/R`, `RFtempL/M/R`, `LRtempL/M/R`, `RRtempL/M/R`, `LFrideHeight`, `RFrideHeight`, `LRrideHeight`, `RRrideHeight`, `Yaw`, `LFshockVel`, `RFshockVel`, `LRshockVel`, `RRshockVel`, `AirTemp`, `TrackTemp`
+
+### Notable Available (not yet extracted)
+- **G-forces:** `LatAccel`, `LongAccel`, `VertAccel`
+- **Motion:** `VelocityX/Y/Z`, `Pitch`, `Roll`, `PitchRate`, `RollRate`, `YawRate`
+- **Tire wear:** `LFwearL/M/R`, `RFwearL/M/R`, `LRwearL/M/R`, `RRwearL/M/R`
+- **Tire center temps:** `LFtempCL/CM/CR`, `RFtempCL/CM/CR`, `LRtempCL/CM/CR`, `RRtempCL/CM/CR`
+- **Suspension:** `LFshockDefl`, `RFshockDefl`, `LRshockDefl`, `RRshockDefl`
+- **Wheel speeds:** `LFspeed`, `RFspeed`, `LRspeed`, `RRspeed`
+- **Brake pressure:** `LFbrakeLinePress`, `RFbrakeLinePress`, `LRbrakeLinePress`, `RRbrakeLinePress`
+- **Engine:** `OilTemp`, `WaterTemp`, `FuelUsePerHour`, `FuelLevelPct`, `ManifoldPress`
+- **Lap delta:** `LapCurrentLapTime`, `LapDeltaToBestLap`, `LapDeltaToOptimalLap`
+- **Weather:** `RelativeHumidity`, `TrackTempCrew`, `TrackWetness`, `WindDir`, `WindVel`
+- **State:** `OnPitRoad`, `BrakeABSactive`, `PlayerCarPosition`
+
+Full list in `docs/ibt-channels.md` — regenerate with `IBT_DEBUG_CHANNELS=1`.
+
+---
+
+## Critical Gotchas
+- **Never use `Math.min(...largeArray)`** — stack overflow on 7000+ elements. Use a loop.
+- `buffer.slice()` is deprecated — prefer `buffer.subarray()` in new code.
+- The sidebar (`Sidebar.tsx`) has `overflow-hidden` — tooltips that escape it must use `position: fixed`.
+- `js-yaml` lacks type declarations — existing `@ts-ignore` / cast pattern is intentional.
