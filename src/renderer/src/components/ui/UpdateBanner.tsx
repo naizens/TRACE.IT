@@ -11,8 +11,8 @@ export function UpdateBanner() {
   if (!ready) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-lg bg-accent px-4 py-3 text-sm text-white shadow-lg">
-      <span>Update downloaded — restart to apply.</span>
+    <div className="fixed top-13 right-4 z-50 flex items-center gap-3 rounded-lg bg-surface-2 px-4 py-3 text-sm text-slate-200 shadow-lg">
+      <span>Update downloaded</span>
       <button
         onClick={() => window.electronAPI.updates.installNow()}
         className="rounded bg-white/20 px-3 py-1 font-medium hover:bg-white/30"

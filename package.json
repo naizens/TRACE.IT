@@ -1,6 +1,6 @@
 {
   "name": "trace-it",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "TRACE.IT - iRacing telemetry analysis tool",
   "main": "out/main/index.js",
   "author": "Niclas Heide",

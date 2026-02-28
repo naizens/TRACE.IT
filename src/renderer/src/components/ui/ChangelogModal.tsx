@@ -11,6 +11,13 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.9',
+    date: '2026-02-28',
+    changes: [
+      { type: 'refactor', text: 'Update banner restyled — now appears below the title bar with softer colours' },
+    ],
+  },
+  {
     version: '0.0.8',
     date: '2026-02-28',
     changes: [
