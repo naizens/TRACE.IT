@@ -14,6 +14,7 @@ IBT binary files are parsed in the Electron **main process** (Node.js) and sent 
 | Styling | **Tailwind CSS v4** — CSS-first, `@tailwindcss/vite` plugin, **no tailwind.config file** |
 | State | **Zustand 5** |
 | Charts | Chart.js 4 + react-chartjs-2 5 + chartjs-plugin-zoom 2 + hammerjs |
+| Updates | **electron-updater** — GitHub Releases, background download, notify-then-restart UX |
 
 ---
 
@@ -23,6 +24,14 @@ npm run dev       # electron-vite dev server (hot-reload renderer + Electron)
 npm run build     # compile to out/
 npm run dist      # build + package installer → release/
 npm run typecheck # tsc --noEmit
+```
+
+### Release workflow
+```bash
+# 1. Bump version in package.json
+# 2. Commit + push
+git tag vX.Y.Z && git push --tags
+# GitHub Actions builds Windows + macOS installers and publishes to GitHub Releases
 ```
 
 ---
@@ -47,6 +56,7 @@ src/
       chartSetup.ts    — Chart.js global register + SyncCursor plugin
     components/
       ui/Button.tsx
+      ui/UpdateBanner.tsx  — update-ready toast (fixed bottom-right)
       layout/Sidebar.tsx
     features/
       sessions/        — SessionList.tsx, LapList.tsx (hover tooltip)
@@ -99,6 +109,14 @@ Variable descriptor: 144 bytes — type@+0, offset@+4, count@+8, name@+16 (char[
 ### Multiple Sessions
 - `sessions[0]` = primary session (green indicator)
 - Telemetry and track map use only `sessions[0]`; Setup tab compares all sessions
+
+### Auto-Updater
+- `electron-updater` downloads updates silently in the background (packaged builds only — gated on `app.isPackaged`)
+- Main process emits `update:downloaded` IPC event → renderer shows `<UpdateBanner />` toast
+- User clicks "Restart now" → renderer sends `update:install` → `autoUpdater.quitAndInstall()`
+- Publish target configured in `package.json` `build.publish` — **fill in `owner`/`repo` before first release**
+- CI: `.github/workflows/release.yml` triggers on `v*` tags; builds Windows + macOS; uses `GITHUB_TOKEN` (auto-injected)
+- **macOS auto-update requires code signing + notarization** — updater will fail silently without it
 
 ---
 
