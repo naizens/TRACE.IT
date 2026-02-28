@@ -5,7 +5,7 @@ import type { ChartData, ChartOptions } from 'chart.js';
 import { useStore } from '../../store/useStore';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
 import { interpolate } from '../../lib/interpolate';
-import { arrayMax } from '../../lib/formatters';
+import { arrayMax, darken } from '../../lib/formatters';
 import { useChartSync } from '../../hooks/useChartSync';
 import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
 import { buildZoomPlugin, buildClickHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
@@ -167,7 +167,7 @@ function buildRideData(
       data: resample(splitterRaw),
     });
 
-    // Front: LF solid, RF dashed
+    // Front: LF full colour, RF darker
     frontDatasets.push({
       ...baseStyle,
       label: `${label} LF`,
@@ -177,13 +177,11 @@ function buildRideData(
     frontDatasets.push({
       ...baseStyle,
       label: `${label} RF`,
-      borderColor: hex,
-      borderDash: [4, 3],
-      borderWidth: 1,
+      borderColor: darken(hex, 0.45),
       data: resample(rf),
     });
 
-    // Rear: LR solid, RR dashed
+    // Rear: LR full colour, RR darker
     rearDatasets.push({
       ...baseStyle,
       label: `${label} LR`,
@@ -193,9 +191,7 @@ function buildRideData(
     rearDatasets.push({
       ...baseStyle,
       label: `${label} RR`,
-      borderColor: hex,
-      borderDash: [4, 3],
-      borderWidth: 1,
+      borderColor: darken(hex, 0.45),
       data: resample(rr),
     });
   }
@@ -364,7 +360,7 @@ export function RideHeightView({ trackMapRef }: Props) {
           </span>
           <span className="flex items-center gap-1">
             <svg width="18" height="6" viewBox="0 0 18 6">
-              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3"/>
+              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45"/>
             </svg>
             Right
           </span>
@@ -391,7 +387,7 @@ export function RideHeightView({ trackMapRef }: Props) {
           <RidePanel
             id="front"
             label="Front"
-            legend="solid = LF · dashed = RF"
+            legend="bright = LF · dark = RF"
             chartData={data?.front ?? empty}
             options={chartOptions.front}
             onRegister={registerChart}
@@ -402,7 +398,7 @@ export function RideHeightView({ trackMapRef }: Props) {
           <RidePanel
             id="rear"
             label="Rear"
-            legend="solid = LR · dashed = RR"
+            legend="bright = LR · dark = RR"
             chartData={data?.rear ?? empty}
             options={chartOptions.rear}
             onRegister={registerChart}

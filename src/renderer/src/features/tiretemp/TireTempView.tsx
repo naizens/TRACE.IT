@@ -6,7 +6,7 @@ import type { Chart } from 'chart.js';
 import { useStore } from '../../store/useStore';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
 import { interpolate } from '../../lib/interpolate';
-import { arrayMax } from '../../lib/formatters';
+import { arrayMax, darken } from '../../lib/formatters';
 import { ChartPanel } from '../telemetry/ChartPanel';
 import { useChartSync } from '../../hooks/useChartSync';
 import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
@@ -28,8 +28,9 @@ const CORNERS = [
 // Labels are intentionally position-agnostic so both sides read consistently.
 const POS_LABELS = ['Outer', 'Mid', 'Inner'] as const;
 
-// Solid / long-dash / dotted — visually distinct at small sizes
-const POS_DASHES: number[][] = [[], [6, 3], [2, 3]];
+// 0 = full colour, higher = darker (mixed toward black)
+const POS_DARKEN = [0, 0.45, 0.68] as const;
+
 
 // ── Chart options factory ─────────────────────────────────────────────────────
 
@@ -182,14 +183,13 @@ export function TireTempView({ trackMapRef }: Props) {
         keys.forEach((key, pi) => {
           const raw = (sess.data[key] ?? new Float32Array()).slice(lap.start_idx, lap.end_idx + 1);
           datasets.push({
-            borderColor: LAP_COLORS[color],
+            borderColor: darken(LAP_COLORS[color], POS_DARKEN[pi]),
             borderWidth: 1,
             pointRadius: 0,
             pointHoverRadius: 4,
             tension: 0,
             normalized: true,
             label: `${lapLabel} ${POS_LABELS[pi]}`,
-            borderDash: POS_DASHES[pi],
             data: axis.map((x) => ({ x: Math.round(x), y: interpolate(dist, raw, x) })),
           });
         });
@@ -264,16 +264,15 @@ export function TireTempView({ trackMapRef }: Props) {
           <span className="text-[10px] text-muted">°C</span>
         </div>
 
-        {/* Dash-pattern legend */}
+        {/* Brightness legend */}
         <div className="flex items-center gap-4 ml-auto">
           {POS_LABELS.map((lbl, i) => (
             <div key={lbl} className="flex items-center gap-1.5">
-              <svg width="22" height="8" viewBox="0 0 22 8" overflow="visible">
+              <svg width="22" height="8" viewBox="0 0 22 8">
                 <line
                   x1="1" y1="4" x2="21" y2="4"
-                  stroke="#71717a"
+                  stroke={darken('#71717a', POS_DARKEN[i])}
                   strokeWidth="1.5"
-                  strokeDasharray={POS_DASHES[i].join(' ')}
                   strokeLinecap="round"
                 />
               </svg>

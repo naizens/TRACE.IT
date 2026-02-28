@@ -19,6 +19,17 @@ export function arrayMax(arr: ArrayLike<number>): number {
   return m;
 }
 
+/**
+ * Darken a hex colour by mixing it toward black.
+ * amount = 0 → unchanged, 1 → pure black.
+ */
+export function darken(hex: string, amount: number): string {
+  const r = Math.round(parseInt(hex.slice(1, 3), 16) * (1 - amount));
+  const g = Math.round(parseInt(hex.slice(3, 5), 16) * (1 - amount));
+  const b = Math.round(parseInt(hex.slice(5, 7), 16) * (1 - amount));
+  return `rgb(${r},${g},${b})`;
+}
+
 /** Loop-safe min */
 export function arrayMin(arr: ArrayLike<number>): number {
   let m = arr[0];

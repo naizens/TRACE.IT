@@ -11,6 +11,13 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.8',
+    date: '2026-02-28',
+    changes: [
+      { type: 'refactor', text: 'Tire Temp, Ride Height, and Shocks charts now use solid darker lines instead of dashed patterns for multi-position comparison' },
+    ],
+  },
+  {
     version: '0.0.7',
     date: '2026-02-28',
     changes: [

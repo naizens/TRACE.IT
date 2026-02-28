@@ -5,7 +5,7 @@ import type { ChartData, ChartOptions, Plugin, Chart } from 'chart.js';
 import { useStore } from '../../store/useStore';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
 import { interpolate } from '../../lib/interpolate';
-import { arrayMax } from '../../lib/formatters';
+import { arrayMax, darken } from '../../lib/formatters';
 import { useChartSync } from '../../hooks/useChartSync';
 import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
 import { buildZoomPlugin, buildClickHandler, type HoverRef, type ZoomRef } from '../../lib/syncChartConfig';
@@ -251,8 +251,7 @@ function buildShockData(
     frontDatasets.push({
       ...baseStyle,
       label: `${label} RF`,
-      borderColor: hex,
-      borderDash: [4, 3],
+      borderColor: darken(hex, 0.45),
       data: resample(rf),
     });
 
@@ -265,8 +264,7 @@ function buildShockData(
     rearDatasets.push({
       ...baseStyle,
       label: `${label} RR`,
-      borderColor: hex,
-      borderDash: [4, 3],
+      borderColor: darken(hex, 0.45),
       data: resample(rr),
     });
   }
@@ -443,7 +441,7 @@ export function ShocksView({ trackMapRef }: Props) {
           </span>
           <span className="flex items-center gap-1">
             <svg width="18" height="6" viewBox="0 0 18 6">
-              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 3" />
+              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45" />
             </svg>
             Right
           </span>
@@ -465,7 +463,7 @@ export function ShocksView({ trackMapRef }: Props) {
           <ShockPanel
             id="shock-front"
             label="Front"
-            legend="solid = LF · dashed = RF"
+            legend="bright = LF · dark = RF"
             chartData={data?.front ?? empty}
             options={chartOptions.front}
             bumpRubberPlugin={frontPlugin}
@@ -477,7 +475,7 @@ export function ShocksView({ trackMapRef }: Props) {
           <ShockPanel
             id="shock-rear"
             label="Rear"
-            legend="solid = LR · dashed = RR"
+            legend="bright = LR · dark = RR"
             chartData={data?.rear ?? empty}
             options={chartOptions.rear}
             bumpRubberPlugin={rearPlugin}
