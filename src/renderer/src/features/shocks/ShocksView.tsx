@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback, useEffect } from 'react';
+import { useMemo, useRef, useCallback, useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import { Line } from 'react-chartjs-2';
 import type { ChartData, ChartOptions, Plugin, Chart } from 'chart.js';
@@ -405,6 +405,44 @@ export function ShocksView({ trackMapRef }: Props) {
   const registerChart   = useCallback((id: string, c: Chart) => register(id, c),  [register]);
   const unregisterChart = useCallback((id: string) => unregister(id), [unregister]);
 
+  // Panel resize
+  const [flexValues, setFlexValues] = useState([1, 1]);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleResizeStart = useCallback(
+    (i: number) => (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startY    = e.clientY;
+      const startFlex = [...flexValues];
+      const totalFlex = startFlex.reduce((a, b) => a + b, 0);
+
+      const onMouseMove = (ev: MouseEvent) => {
+        const dy          = ev.clientY - startY;
+        const totalHeight = containerRef.current?.clientHeight ?? 400;
+        const dyFlex      = (dy / totalHeight) * totalFlex;
+        const next = [...startFlex];
+        next[i]     = Math.max(0.25, startFlex[i]     + dyFlex);
+        next[i + 1] = Math.max(0.25, startFlex[i + 1] - dyFlex);
+        setFlexValues(next);
+      };
+
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup',   onMouseUp);
+        document.body.style.cursor     = '';
+        document.body.style.userSelect = '';
+      };
+
+      document.body.style.cursor     = 'ns-resize';
+      document.body.style.userSelect = 'none';
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup',   onMouseUp);
+    },
+    [flexValues],
+  );
+
+  const resetFlex = useCallback(() => setFlexValues([1, 1]), []);
+
   if (sessions.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted text-sm">
@@ -459,31 +497,43 @@ export function ShocksView({ trackMapRef }: Props) {
           Select laps from the sidebar to compare
         </div>
       ) : (
-        <div className="flex flex-col gap-3 flex-1 min-h-0">
-          <ShockPanel
-            id="shock-front"
-            label="Front"
-            legend="bright = LF · dark = RF"
-            chartData={data?.front ?? empty}
-            options={chartOptions.front}
-            bumpRubberPlugin={frontPlugin}
-            onRegister={registerChart}
-            onUnregister={unregisterChart}
-            onWheelPan={handleZoom}
-            onDblClick={handleDblClick}
-          />
-          <ShockPanel
-            id="shock-rear"
-            label="Rear"
-            legend="bright = LR · dark = RR"
-            chartData={data?.rear ?? empty}
-            options={chartOptions.rear}
-            bumpRubberPlugin={rearPlugin}
-            onRegister={registerChart}
-            onUnregister={unregisterChart}
-            onWheelPan={handleZoom}
-            onDblClick={handleDblClick}
-          />
+        <div ref={containerRef} className="flex flex-col flex-1 min-h-0">
+          <div style={{ flex: flexValues[0] }} className="relative flex flex-col min-h-0">
+            <ShockPanel
+              id="shock-front"
+              label="Front"
+              legend="bright = LF · dark = RF"
+              chartData={data?.front ?? empty}
+              options={chartOptions.front}
+              bumpRubberPlugin={frontPlugin}
+              onRegister={registerChart}
+              onUnregister={unregisterChart}
+              onWheelPan={handleZoom}
+              onDblClick={handleDblClick}
+            />
+            <div
+              className="absolute bottom-0 inset-x-0 h-4 translate-y-1/2 z-10 cursor-ns-resize group"
+              onMouseDown={handleResizeStart(0)}
+              onDoubleClick={resetFlex}
+            >
+              <div className="absolute inset-x-0 top-1/2 h-px bg-border pointer-events-none" />
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-2 rounded-full bg-surface-2 border border-border group-hover:border-accent/50 transition-colors pointer-events-none" />
+            </div>
+          </div>
+          <div style={{ flex: flexValues[1] }} className="flex flex-col min-h-0">
+            <ShockPanel
+              id="shock-rear"
+              label="Rear"
+              legend="bright = LR · dark = RR"
+              chartData={data?.rear ?? empty}
+              options={chartOptions.rear}
+              bumpRubberPlugin={rearPlugin}
+              onRegister={registerChart}
+              onUnregister={unregisterChart}
+              onWheelPan={handleZoom}
+              onDblClick={handleDblClick}
+            />
+          </div>
         </div>
       )}
     </div>

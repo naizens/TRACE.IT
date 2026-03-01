@@ -11,6 +11,19 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.10',
+    date: '2026-03-01',
+    changes: [
+      { type: 'feat',     text: 'Track map now renders all selected laps as overlaid colored lines with per-lap position markers' },
+      { type: 'feat',     text: 'Track map supports zoom (scroll wheel) and pan (drag), with double-click to reset the view' },
+      { type: 'feat',     text: 'Telemetry bar shows throttle/brake/speed/gear/steering for two laps simultaneously with color-coded indicators' },
+      { type: 'feat',     text: 'Sidebar width is now resizable by dragging its right edge (200–520 px), with double-click to reset' },
+      { type: 'feat',     text: 'Track map height in the sidebar is now resizable by dragging the handle above it (80–480 px)' },
+      { type: 'feat',     text: 'Chart panels in Telemetry, Ride Heights, and Shocks views are now resizable — drag dividers to adjust, double-click to reset' },
+      { type: 'refactor', text: 'UI accent colour updated from green to blue' },
+    ],
+  },
+  {
     version: '0.0.9',
     date: '2026-02-28',
     changes: [

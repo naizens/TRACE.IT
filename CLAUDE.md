@@ -66,32 +66,41 @@ git push origin vX.Y.Z
 ```
 src/
   main/
-    index.ts           — Electron main process, IPC handler (open-ibt-files)
+    index.ts           — Electron main process: window creation, auto-updater, window controls IPC, IBT file dialog, drag-drop parsing
     ibt-parser.ts      — Binary IBT parser, returns ParsedSession
   preload/
-    index.ts           — contextBridge: exposes window.electronAPI
+    index.ts           — contextBridge: exposes window.electronAPI (IBT parse, updates, window controls)
   renderer/src/
-    App.tsx            — root, tab routing
+    App.tsx            — root, tab routing, renders TitleBar + Sidebar + active feature view + DropZone + UpdateBanner
     main.tsx, index.css, env.d.ts
     types/session.ts   — ParsedSession, LapInfo, SessionMeta, LapColor, LapSelections
-    store/useStore.ts  — Zustand store: sessions[], selections{}, activeTab
+    store/useStore.ts  — Zustand store: sessions[], selections{}, activeTab; lap colour toggling with slot constraints
     lib/
-      constants.ts     — LAP_COLORS, COLOR_ORDER, CHART_CONFIGS
-      interpolate.ts   — binary-search linear interpolation
-      formatters.ts    — formatLapTime, arrayMax, arrayMin
-      chartSetup.ts    — Chart.js global register + SyncCursor plugin
+      constants.ts       — LAP_COLORS, COLOR_ORDER, CHART_CONFIGS
+      interpolate.ts     — binary-search linear interpolation
+      formatters.ts      — formatLapTime, formatDelta, arrayMax, arrayMin, darken(hex, amount)
+      chartSetup.ts      — Chart.js global register + SyncCursor plugin + pinnedCursor state
+      buildChartData.ts  — shared chart dataset builder (Telemetry, TireTemp, etc.)
+      syncChartConfig.ts — buildZoomPlugin, buildClickHandler
     components/
       ui/Button.tsx
-      ui/UpdateBanner.tsx  — update-ready toast (fixed bottom-right)
-      layout/Sidebar.tsx
+      ui/UpdateBanner.tsx   — update-ready toast (fixed top-right, below title bar)
+      ui/ChangelogModal.tsx — release history modal, opened from TitleBar version badge
+      layout/TitleBar.tsx   — frameless title bar: logo, tab nav, version badge, window controls
+      layout/Sidebar.tsx    — left panel: open button, SessionList, LapList, TelemetryBar + TrackMap
+      layout/DropZone.tsx   — full-screen drag-and-drop overlay (shown when no sessions loaded)
+    hooks/
+      useChartSync.ts       — imperative chart hover/zoom/click/drag sync, zero re-renders
+      useTrackMapUpdate.ts  — reads Zustand imperatively, calls trackMapRef.updateMarker with correct lap's telemetry
     features/
-      sessions/        — SessionList.tsx, LapList.tsx (hover tooltip)
-      telemetry/       — TelemetryView, ChartPanel, useChartSync, buildChartData, createChartOptions
-      rideheight/      — RideHeightView.tsx
-      tiretemp/        — TireTempView.tsx
-      damper/          — DamperView.tsx
-      setup/           — SetupView.tsx
-      trackmap/        — TrackMap.tsx
+      sessions/        — SessionList.tsx, LapList.tsx (lap selector, hover tooltip with temps/humidity/fuel)
+      telemetry/       — TelemetryView.tsx, ChartPanel.tsx, createChartOptions.ts
+      rideheight/      — RideHeightView.tsx (Splitter / Front / Rear panels)
+      tiretemp/        — TireTempView.tsx (2×2 grid, 3 positions per corner)
+      damper/          — DamperView.tsx (shock velocity histograms, LS/HS zones)
+      shocks/          — ShocksView.tsx (shock deflection charts + bump-rubber gap line)
+      setup/           — SetupView.tsx (multi-session CarSetup diff table)
+      trackmap/        — TrackMap.tsx, TelemetryBar.tsx, index.ts (barrel — always import from here)
 ```
 
 ---
@@ -130,7 +139,10 @@ Variable descriptor: 144 bytes — type@+0, offset@+4, count@+8, name@+16 (char[
 
 ### Track Map
 - Canvas-based, dead reckoning: `x += Speed * cos(Yaw) * dt`, `y += Speed * sin(Yaw) * dt`
-- Exposes imperative `updateMarker(dist)` via `forwardRef` / `useImperativeHandle`
+- Exposes imperative `updateMarker(lapDist, inputs?)` via `forwardRef` / `useImperativeHandle`
+- `TelemetryBar` is a **separate component** above the map canvas — do not merge back into the canvas
+- Always import from the barrel: `import { TrackMap, TelemetryBar } from '../trackmap'` (the `index.ts`)
+- Use `useTrackMapUpdate(trackMapRef)` in every view that has a map ref — reads the highest-priority selected lap from Zustand and calls `updateMarker` with correct telemetry
 
 ### Multiple Sessions
 - `sessions[0]` = primary session (green indicator)
@@ -166,14 +178,13 @@ Use canonical Tailwind V4 class names — e.g. `shrink-0` not `flex-shrink-0`.
 ## Available IBT Channels (confirmed from real file)
 
 ### Currently Extracted (NEEDED_VARS)
-`SessionTime`, `Lap`, `LapDist`, `Throttle`, `Brake`, `SteeringWheelAngle`, `Speed`, `LapLastLapTime`, `Gear`, `RPM`, `FuelLevel`, `DcBrakeBias`, `LFpressure`, `RFpressure`, `LRpressure`, `RRpressure`, `LFtempL/M/R`, `RFtempL/M/R`, `LRtempL/M/R`, `RRtempL/M/R`, `LFrideHeight`, `RFrideHeight`, `LRrideHeight`, `RRrideHeight`, `Yaw`, `LFshockVel`, `RFshockVel`, `LRshockVel`, `RRshockVel`, `AirTemp`, `TrackTemp`
+`SessionTime`, `Lap`, `LapDist`, `Throttle`, `Brake`, `SteeringWheelAngle`, `Speed`, `LapLastLapTime`, `Gear`, `RPM`, `FuelLevel`, `DcBrakeBias`, `LFpressure`, `RFpressure`, `LRpressure`, `RRpressure`, `LFtempL/M/R`, `RFtempL/M/R`, `LRtempL/M/R`, `RRtempL/M/R`, `LFrideHeight`, `RFrideHeight`, `LRrideHeight`, `RRrideHeight`, `Yaw`, `LFshockVel`, `RFshockVel`, `LRshockVel`, `RRshockVel`, `LFshockDefl`, `RFshockDefl`, `LRshockDefl`, `RRshockDefl`, `AirTemp`, `TrackTemp`
 
 ### Notable Available (not yet extracted)
 - **G-forces:** `LatAccel`, `LongAccel`, `VertAccel`
 - **Motion:** `VelocityX/Y/Z`, `Pitch`, `Roll`, `PitchRate`, `RollRate`, `YawRate`
 - **Tire wear:** `LFwearL/M/R`, `RFwearL/M/R`, `LRwearL/M/R`, `RRwearL/M/R`
 - **Tire center temps:** `LFtempCL/CM/CR`, `RFtempCL/CM/CR`, `LRtempCL/CM/CR`, `RRtempCL/CM/CR`
-- **Suspension:** `LFshockDefl`, `RFshockDefl`, `LRshockDefl`, `RRshockDefl`
 - **Wheel speeds:** `LFspeed`, `RFspeed`, `LRspeed`, `RRspeed`
 - **Brake pressure:** `LFbrakeLinePress`, `RFbrakeLinePress`, `LRbrakeLinePress`, `RRbrakeLinePress`
 - **Engine:** `OilTemp`, `WaterTemp`, `FuelUsePerHour`, `FuelLevelPct`, `ManifoldPress`
@@ -190,3 +201,6 @@ Full list in `docs/ibt-channels.md` — regenerate with `IBT_DEBUG_CHANNELS=1`.
 - `buffer.slice()` is deprecated — prefer `buffer.subarray()` in new code.
 - The sidebar (`Sidebar.tsx`) has `overflow-hidden` — tooltips that escape it must use `position: fixed`.
 - `js-yaml` lacks type declarations — existing `@ts-ignore` / cast pattern is intentional.
+- **TitleBar version badge is hardcoded** — `TitleBar.tsx` line with `v0.0.X` must be updated manually (or via `/release`); it does NOT read from `package.json`.
+- **`/release X.Y.Z`** — use this skill to automate all 3-file version bumps + commit + tag + push.
+- **Circular imports** — if two co-located components share a type, own it in the component that *accepts* it as input; the other imports and re-exports it.
