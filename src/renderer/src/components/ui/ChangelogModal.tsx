@@ -11,6 +11,15 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.11',
+    date: '2026-03-01',
+    changes: [
+      { type: 'fix',      text: 'Sidebar and tab navigation are now hidden on the empty state — only the drop zone is shown until files are loaded' },
+      { type: 'perf',     text: 'Renderer packages (React, Chart.js, Zustand, etc.) moved to devDependencies — significantly reduces installer size' },
+      { type: 'refactor', text: 'Only English locale bundled, removing unused Chromium locale files' },
+    ],
+  },
+  {
     version: '0.0.10',
     date: '2026-03-01',
     changes: [

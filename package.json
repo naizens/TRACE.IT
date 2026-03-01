@@ -1,6 +1,6 @@
 {
   "name": "trace-it",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "TRACE.IT - iRacing telemetry analysis tool",
   "main": "out/main/index.js",
   "author": "Niclas Heide",
@@ -12,35 +12,36 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
-    "chart.js": "^4.4.4",
-    "chartjs-plugin-zoom": "^2.0.1",
     "electron-updater": "^6.8.3",
-    "hammerjs": "^2.0.8",
-    "js-yaml": "^4.1.0",
-    "react": "^18.3.1",
-    "react-chartjs-2": "^5.2.0",
-    "react-dom": "^18.3.1",
-    "zustand": "^5.0.0"
+    "js-yaml": "^4.1.0"
   },
   "devDependencies": {
+    "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/hammerjs": "^2.0.45",
     "@types/node": "^20.0.0",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
+    "chart.js": "^4.4.4",
+    "chartjs-plugin-zoom": "^2.0.1",
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0",
     "electron-vite": "^2.3.0",
+    "hammerjs": "^2.0.8",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.3.1",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.6.2",
-    "vite": "^5.4.8"
+    "vite": "^5.4.8",
+    "zustand": "^5.0.0"
   },
   "build": {
     "appId": "com.trace-it.app",
     "productName": "TRACE.IT",
     "asar": true,
+    "electronLanguages": ["en"],
     "directories": {
       "output": "release"
     },

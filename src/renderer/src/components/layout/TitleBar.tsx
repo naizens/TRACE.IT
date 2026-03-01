@@ -25,6 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
 export function TitleBar() {
   const activeTab    = useStore((s) => s.activeTab);
   const setActiveTab = useStore((s) => s.setActiveTab);
+  const hasSessions  = useStore((s) => s.sessions.length > 0);
 
   const [isMaximized, setIsMaximized] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
@@ -53,30 +54,32 @@ export function TitleBar() {
       <div className="w-px bg-border my-2 shrink-0" />
 
       {/* ── Tabs ─────────────────────────────────────────────────────────── */}
-      <nav
-        className="flex items-stretch gap-0.5 px-1"
-        style={{ WebkitAppRegion: 'no-drag' }}
-      >
-        {TABS.map(({ id, label }) => {
-          const active = activeTab === id;
-          return (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={[
-                'relative flex items-center px-3 text-[11px] font-semibold uppercase tracking-wider',
-                'transition-colors duration-150 cursor-pointer',
-                active ? 'text-text' : 'text-[#52525b] hover:text-[#a1a1aa]',
-              ].join(' ')}
-            >
-              {label}
-              {active && (
-                <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-t-full bg-accent" />
-              )}
-            </button>
-          );
-        })}
-      </nav>
+      {hasSessions && (
+        <nav
+          className="flex items-stretch gap-0.5 px-1"
+          style={{ WebkitAppRegion: 'no-drag' }}
+        >
+          {TABS.map(({ id, label }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={[
+                  'relative flex items-center px-3 text-[11px] font-semibold uppercase tracking-wider',
+                  'transition-colors duration-150 cursor-pointer',
+                  active ? 'text-text' : 'text-[#52525b] hover:text-[#a1a1aa]',
+                ].join(' ')}
+              >
+                {label}
+                {active && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-t-full bg-accent" />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {/* ── Drag spacer ──────────────────────────────────────────────────── */}
       <div className="flex-1" />
@@ -88,7 +91,7 @@ export function TitleBar() {
           title="Changelog"
           className="flex items-center px-2 py-0.5 rounded text-[10px] font-mono text-muted hover:text-text hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          v0.0.10
+          v0.0.11
         </button>
       </div>
 

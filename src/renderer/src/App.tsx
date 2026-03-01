@@ -26,7 +26,7 @@ export function App() {
 
       {/* Content row */}
       <div className="relative flex flex-1 overflow-hidden min-h-0">
-        <Sidebar trackMapRef={trackMapRef} />
+        {sessions.length > 0 && <Sidebar trackMapRef={trackMapRef} />}
 
         {/* flex flex-col so TelemetryView's flex-1 has a proper flex context */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
