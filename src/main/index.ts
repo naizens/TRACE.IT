@@ -9,6 +9,7 @@ import { parseIbt } from './ibt-parser';
 interface AppConfig {
   hardwareAcceleration: boolean;
   windowBounds?: { x: number; y: number; width: number; height: number };
+  windowMaximized?: boolean;
 }
 
 const CONFIG_PATH = join(app.getPath('userData'), 'config.json');
@@ -71,9 +72,12 @@ function createWindow(): void {
   mainWindow.on('moved',   saveBounds);
   mainWindow.on('resized', saveBounds);
 
-  // Notify renderer whenever maximise state changes
-  mainWindow.on('maximize',   () => mainWindow?.webContents.send('window:maximized',   true));
-  mainWindow.on('unmaximize', () => mainWindow?.webContents.send('window:maximized',   false));
+  // Restore maximized state
+  if (loadConfig().windowMaximized) mainWindow.maximize();
+
+  // Notify renderer whenever maximise state changes + persist
+  mainWindow.on('maximize',   () => { mainWindow?.webContents.send('window:maximized', true);  saveConfig({ ...loadConfig(), windowMaximized: true  }); });
+  mainWindow.on('unmaximize', () => { mainWindow?.webContents.send('window:maximized', false); saveConfig({ ...loadConfig(), windowMaximized: false }); });
   mainWindow.on('enter-full-screen', () => mainWindow?.webContents.send('window:maximized', true));
   mainWindow.on('leave-full-screen', () => mainWindow?.webContents.send('window:maximized', false));
 

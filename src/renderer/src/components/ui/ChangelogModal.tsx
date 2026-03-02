@@ -10,6 +10,13 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.15',
+    date: '2026-03-03',
+    changes: [
+      { type: 'feat', text: 'Window maximized state is now remembered across sessions — app reopens maximized if it was closed that way' },
+    ],
+  },
+  {
     version: '0.0.14',
     date: '2026-03-03',
     changes: [
