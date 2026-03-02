@@ -21,6 +21,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     installNow: () => ipcRenderer.send('update:install'),
   },
 
+  // ── Settings ─────────────────────────────────────────────────────────────
+  settings: {
+    get: (): Promise<{ hardwareAcceleration: boolean }> =>
+      ipcRenderer.invoke('settings:get'),
+    set: (updates: Partial<{ hardwareAcceleration: boolean }>): Promise<void> =>
+      ipcRenderer.invoke('settings:set', updates),
+    relaunch: () => ipcRenderer.send('settings:relaunch'),
+  },
+
   // ── Window controls ─────────────────────────────────────────────────────
   windowControls: {
     minimize: ()                           => ipcRenderer.send('window:minimize'),
@@ -49,6 +58,11 @@ export interface ElectronAPI {
   openIbtFiles: () => Promise<ParsedSession[] | null>;
   parseIbtBuffers: (files: Array<{ name: string; data: ArrayBuffer }>) => Promise<ParsedSession[] | null>;
   platform: string;
+  settings: {
+    get: () => Promise<{ hardwareAcceleration: boolean }>;
+    set: (updates: Partial<{ hardwareAcceleration: boolean }>) => Promise<void>;
+    relaunch: () => void;
+  };
   windowControls: WindowControls;
   updates: {
     onUpdateDownloaded: (cb: () => void) => () => void;

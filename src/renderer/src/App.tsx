@@ -37,7 +37,7 @@ export function App() {
           {activeTab === 'shocks'      && <ShocksView        trackMapRef={trackMapRef} />}
           {activeTab === 'shockvel'   && <ShockVelocityView trackMapRef={trackMapRef} />}
           {activeTab === 'rideheight'  && <RideHeightView trackMapRef={trackMapRef} />}
-{activeTab === 'tiretemp'    && <TireTempView   trackMapRef={trackMapRef} />}
+          {activeTab === 'tiretemp'    && <TireTempView   trackMapRef={trackMapRef} />}
         </main>
 
         {/* Full-area overlay when no files loaded — sits above sidebar */}

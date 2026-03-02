@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { XMarkIcon } from '@heroicons/react/16/solid';
+import { Modal } from './Modal';
 
 // ── Changelog entries ─────────────────────────────────────────────────────────
 
@@ -10,6 +9,16 @@ interface Entry {
 }
 
 const CHANGELOG: Entry[] = [
+  {
+    version: '0.0.13',
+    date: '2026-03-03',
+    changes: [
+      { type: 'feat',     text: 'Settings modal — hardware acceleration toggle accessible from the gear icon in the title bar' },
+      { type: 'feat',     text: 'Window position and size are now remembered across sessions; resets automatically if the display is disconnected' },
+      { type: 'fix',      text: 'Shock velocity charts now correctly display values in mm/s instead of m/s' },
+      { type: 'refactor', text: 'Shared Modal base component introduced — used by Changelog and Settings modals' },
+    ],
+  },
   {
     version: '0.0.12',
     date: '2026-03-03',
@@ -77,20 +86,20 @@ const CHANGELOG: Entry[] = [
     version: '0.0.5',
     date: '2026-02-22',
     changes: [
-      { type: 'feat',    text: 'Shocks view with shock velocity charts per corner' },
-      { type: 'feat',    text: 'Drag-and-drop IBT loading via DropZone overlay' },
-      { type: 'feat',    text: 'Telemetry input overlay on track map (throttle / brake trace)' },
+      { type: 'feat',     text: 'Shocks view with shock velocity charts per corner' },
+      { type: 'feat',     text: 'Drag-and-drop IBT loading via DropZone overlay' },
+      { type: 'feat',     text: 'Telemetry input overlay on track map (throttle / brake trace)' },
       { type: 'refactor', text: 'Moved chart utilities to lib/, replaced inline SVGs with heroicons' },
-      { type: 'feat',    text: 'Tire temp Y-range improvements' },
+      { type: 'feat',     text: 'Tire temp Y-range improvements' },
     ],
   },
   {
     version: '0.0.4',
     date: '2026-02-15',
     changes: [
-      { type: 'feat',    text: 'Ride Height view' },
-      { type: 'feat',    text: 'Tire Temperature view with corner heatmaps' },
-      { type: 'feat',    text: 'Damper view' },
+      { type: 'feat', text: 'Ride Height view' },
+      { type: 'feat', text: 'Tire Temperature view with corner heatmaps' },
+      { type: 'feat', text: 'Damper view' },
     ],
   },
 ];
@@ -112,69 +121,31 @@ interface Props {
 }
 
 export function ChangelogModal({ open, onClose }: Props) {
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   return (
-    /* Backdrop */
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      {/* Panel */}
-      <div
-        className="relative w-full max-w-lg mx-4 max-h-[70vh] flex flex-col rounded-xl bg-surface border border-border shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-          <div>
-            <h2 className="text-sm font-bold text-text tracking-wide">Changelog</h2>
-            <p className="text-[11px] text-muted mt-0.5">TRACE.IT release history</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center w-7 h-7 rounded-md text-muted hover:text-text hover:bg-surface-2 transition-colors"
-          >
-            <XMarkIcon className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Scrollable content */}
-        <div className="overflow-y-auto px-5 py-4 space-y-6">
-          {CHANGELOG.map((entry) => (
-            <div key={entry.version}>
-              {/* Version header */}
-              <div className="flex items-baseline gap-2 mb-3">
-                <span className="text-xs font-bold text-text">v{entry.version}</span>
-                <span className="text-[10px] text-muted">{entry.date}</span>
-              </div>
-
-              {/* Change list */}
-              <ul className="space-y-2">
-                {entry.changes.map((change, i) => {
-                  const { label, className } = TYPE_LABEL[change.type];
-                  return (
-                    <li key={i} className="flex items-start gap-2.5">
-                      <span className={`mt-0.5 inline-flex shrink-0 items-center justify-center w-16 rounded py-0.5 text-[9px] font-bold uppercase tracking-wide ${className}`}>
-                        {label}
-                      </span>
-                      <span className="text-[11px] text-muted leading-relaxed">{change.text}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+    <Modal open={open} onClose={onClose} title="Changelog" subtitle="TRACE.IT release history" panelClassName="max-h-[70vh]">
+      <div className="overflow-y-auto px-5 py-4 space-y-6">
+        {CHANGELOG.map((entry) => (
+          <div key={entry.version}>
+            <div className="flex items-baseline gap-2 mb-3">
+              <span className="text-xs font-bold text-text">v{entry.version}</span>
+              <span className="text-[10px] text-muted">{entry.date}</span>
             </div>
-          ))}
-        </div>
+            <ul className="space-y-2">
+              {entry.changes.map((change, i) => {
+                const { label, className } = TYPE_LABEL[change.type];
+                return (
+                  <li key={i} className="flex items-start gap-2.5">
+                    <span className={`mt-0.5 inline-flex shrink-0 items-center justify-center w-16 rounded py-0.5 text-[9px] font-bold uppercase tracking-wide ${className}`}>
+                      {label}
+                    </span>
+                    <span className="text-[11px] text-muted leading-relaxed">{change.text}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </div>
-    </div>
+    </Modal>
   );
 }

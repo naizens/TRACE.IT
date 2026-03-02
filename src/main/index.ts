@@ -1,17 +1,56 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron';
 import { join } from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { autoUpdater } from 'electron-updater';
 import { parseIbt } from './ibt-parser';
+
+// ── Persistent config ─────────────────────────────────────────────────────────
+
+interface AppConfig {
+  hardwareAcceleration: boolean;
+  windowBounds?: { x: number; y: number; width: number; height: number };
+}
+
+const CONFIG_PATH = join(app.getPath('userData'), 'config.json');
+
+function loadConfig(): AppConfig {
+  try {
+    if (existsSync(CONFIG_PATH)) return JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
+  } catch { /* ignore malformed file */ }
+  return { hardwareAcceleration: true };
+}
+
+function saveConfig(config: AppConfig): void {
+  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+// Must run before app.whenReady()
+const appConfig = loadConfig();
+if (!appConfig.hardwareAcceleration) app.disableHardwareAcceleration();
 
 // Module-level reference so IPC handlers can reach the window
 let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
+  // Restore saved bounds if the window centre is still on a connected display
+  const saved = loadConfig().windowBounds;
+  let restoreBounds: { x: number; y: number; width: number; height: number } | undefined;
+  if (saved) {
+    const cx = saved.x + saved.width  / 2;
+    const cy = saved.y + saved.height / 2;
+    const onScreen = screen.getAllDisplays().some(
+      (d) => cx >= d.bounds.x && cx <= d.bounds.x + d.bounds.width &&
+             cy >= d.bounds.y && cy <= d.bounds.y + d.bounds.height,
+    );
+    if (onScreen) restoreBounds = saved;
+  }
+
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1100,
+    width:     restoreBounds?.width  ?? 1440,
+    height:    restoreBounds?.height ?? 900,
+    x:         restoreBounds?.x,
+    y:         restoreBounds?.y,
+    minWidth:  1100,
     minHeight: 640,
     // Remove native frame — we render our own titlebar
     frame: false,
@@ -23,6 +62,14 @@ function createWindow(): void {
       sandbox: false,
     },
   });
+
+  // Persist window position/size whenever the user moves or resizes it
+  const saveBounds = () => {
+    if (!mainWindow || mainWindow.isMaximized() || mainWindow.isMinimized()) return;
+    saveConfig({ ...loadConfig(), windowBounds: mainWindow.getBounds() });
+  };
+  mainWindow.on('moved',   saveBounds);
+  mainWindow.on('resized', saveBounds);
 
   // Notify renderer whenever maximise state changes
   mainWindow.on('maximize',   () => mainWindow?.webContents.send('window:maximized',   true));
@@ -96,6 +143,16 @@ ipcMain.handle('open-ibt-files', async () => {
   }
 
   return results.length > 0 ? results : null;
+});
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+ipcMain.handle('settings:get', () => loadConfig());
+ipcMain.handle('settings:set', (_, updates: Partial<AppConfig>) => {
+  saveConfig({ ...loadConfig(), ...updates });
+});
+ipcMain.on('settings:relaunch', () => {
+  app.relaunch();
+  app.exit();
 });
 
 // ── Drag-and-drop parsing (raw buffers from renderer drag events) ─────────────

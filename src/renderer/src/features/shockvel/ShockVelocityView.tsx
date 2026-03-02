@@ -50,7 +50,7 @@ function createShockVelOptions(
         callbacks: {
           title: (items) => `${items[0].parsed.x} m`,
           label: (item) =>
-            `${(item.dataset.label as string).split(' ').pop()}: ${(item.parsed.y as number).toFixed(3)} m/s`,
+            `${(item.dataset.label as string).split(' ').pop()}: ${(item.parsed.y as number).toFixed(1)} mm/s`,
           labelTextColor: (item) => item.dataset.borderColor as string,
         },
       },
@@ -70,7 +70,7 @@ function createShockVelOptions(
         border: { display: false },
       },
       y: {
-        title: { display: true, text: 'm/s', color: '#52525b', font: { size: 10 } },
+        title: { display: true, text: 'mm/s', color: '#52525b', font: { size: 10 } },
         ticks: { color: '#52525b', font: { size: 9 } },
         grid: { color: 'rgba(255,255,255,0.04)' },
         border: { display: false },
@@ -141,7 +141,7 @@ function buildShockVelData(
     const rr   = (d[CH.rr]      ?? new Float32Array()).slice(s, e);
 
     const resample = (arr: ArrayLike<number>) =>
-      axis.map((x) => ({ x: Math.round(x), y: interpolate(dist, arr, x) }));
+      axis.map((x) => ({ x: Math.round(x), y: interpolate(dist, arr, x) * 1000 }));
 
     const baseStyle = {
       borderWidth: 1,
@@ -364,7 +364,7 @@ export function ShockVelocityView({ trackMapRef }: Props) {
         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted">
           Shock Velocity
         </span>
-        <span className="text-[10px] text-muted">· m/s · over lap distance</span>
+        <span className="text-[10px] text-muted">· mm/s · over lap distance</span>
         <div className="flex items-center gap-3 ml-auto text-[9px] text-muted">
           <span className="flex items-center gap-1">
             <svg width="18" height="6" viewBox="0 0 18 6">
