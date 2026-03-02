@@ -68,7 +68,7 @@ export function createChartOptions({
           font:  { size: 8 },
           maxTicksLimit: 10,
           padding: 1,
-          callback: (value) => `${value}m`,
+          callback: (value) => `${(value as number).toFixed(2)}m`,
         },
         grid:   { color: 'rgba(255,255,255,0.04)' },
         border: { display: false },

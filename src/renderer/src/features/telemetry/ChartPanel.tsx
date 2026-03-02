@@ -72,12 +72,12 @@ export const ChartPanel = forwardRef<ChartPanelHandle, Props>(
         style={{ flex }}
       >
         {/* Channel label */}
-        <span className="absolute top-1 left-2 z-10 text-[9px] font-bold text-muted uppercase tracking-wider pointer-events-none select-none">
+        <span className="absolute bottom-5 left-2 z-10 text-[9px] font-bold text-muted uppercase tracking-wider pointer-events-none select-none bg-surface/70 px-1 rounded">
           {label}
         </span>
 
         {/* Chart canvas wrapper — must be relative + sized for Chart.js */}
-        <div className="chart-container absolute inset-0 pt-4">
+        <div className="chart-container absolute inset-0">
           <Line
             ref={chartRef}
             data={{ datasets }}

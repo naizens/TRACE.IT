@@ -9,6 +9,7 @@ import { DamperView } from './features/damper/DamperView';
 import { RideHeightView } from './features/rideheight/RideHeightView';
 import { TireTempView } from './features/tiretemp/TireTempView';
 import { ShocksView } from './features/shocks/ShocksView';
+import { ShockVelocityView } from './features/shockvel/ShockVelocityView';
 import type { TrackMapHandle } from './features/trackmap';
 import { UpdateBanner } from './components/ui/UpdateBanner';
 
@@ -33,9 +34,10 @@ export function App() {
           {activeTab === 'telemetry' && <TelemetryView trackMapRef={trackMapRef} />}
           {activeTab === 'setup'     && <SetupView />}
           {activeTab === 'damper'      && <DamperView />}
-          {activeTab === 'shocks'      && <ShocksView     trackMapRef={trackMapRef} />}
+          {activeTab === 'shocks'      && <ShocksView        trackMapRef={trackMapRef} />}
+          {activeTab === 'shockvel'   && <ShockVelocityView trackMapRef={trackMapRef} />}
           {activeTab === 'rideheight'  && <RideHeightView trackMapRef={trackMapRef} />}
-          {activeTab === 'tiretemp'    && <TireTempView   trackMapRef={trackMapRef} />}
+{activeTab === 'tiretemp'    && <TireTempView   trackMapRef={trackMapRef} />}
         </main>
 
         {/* Full-area overlay when no files loaded — sits above sidebar */}

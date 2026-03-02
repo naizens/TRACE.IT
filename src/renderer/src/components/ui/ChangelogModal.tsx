@@ -11,6 +11,16 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.12',
+    date: '2026-03-03',
+    changes: [
+      { type: 'feat',     text: 'Shock Velocity view — per-corner shock velocity charts (m/s) with track map sync' },
+      { type: 'feat',     text: 'Shocks navigation is now a dropdown with Deflection and Velocity sub-tabs' },
+      { type: 'refactor', text: 'Telemetry channel label moved to bottom-left with a subtle background overlay' },
+      { type: 'fix',      text: 'Telemetry x-axis distance labels now show 2 decimal places' },
+    ],
+  },
+  {
     version: '0.0.11',
     date: '2026-03-01',
     changes: [
@@ -153,7 +163,7 @@ export function ChangelogModal({ open, onClose }: Props) {
                   const { label, className } = TYPE_LABEL[change.type];
                   return (
                     <li key={i} className="flex items-start gap-2.5">
-                      <span className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${className}`}>
+                      <span className={`mt-0.5 inline-flex shrink-0 items-center justify-center w-16 rounded py-0.5 text-[9px] font-bold uppercase tracking-wide ${className}`}>
                         {label}
                       </span>
                       <span className="text-[11px] text-muted leading-relaxed">{change.text}</span>

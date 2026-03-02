@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ParsedSession, LapSelections, LapColor } from '../types/session';
 import { COLOR_ORDER } from '../lib/constants';
 
-export type Tab = 'telemetry' | 'setup' | 'damper' | 'rideheight' | 'tiretemp' | 'shocks';
+export type Tab = 'telemetry' | 'setup' | 'damper' | 'rideheight' | 'tiretemp' | 'shocks' | 'shockvel';
 
 interface State {
   sessions: ParsedSession[];

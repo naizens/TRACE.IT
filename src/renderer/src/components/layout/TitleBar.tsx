@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store/useStore';
 import type { Tab } from '../../store/useStore';
 import {
@@ -6,18 +6,26 @@ import {
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
   XMarkIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/16/solid';
 import { ChangelogModal } from '../ui/ChangelogModal';
 
 // ── Tab types ────────────────────────────────────────────────────────────────
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'telemetry',  label: 'Telemetry'    },
-  { id: 'setup',      label: 'Car Setup'    },
-  { id: 'damper',     label: 'Damper'       },
-  { id: 'shocks',     label: 'Shocks'       },
+const TABS_BEFORE: { id: Tab; label: string }[] = [
+  { id: 'telemetry', label: 'Telemetry' },
+  { id: 'damper',    label: 'Damper'    },
+];
+
+const TABS_AFTER: { id: Tab; label: string }[] = [
   { id: 'rideheight', label: 'Ride Heights' },
   { id: 'tiretemp',   label: 'Tire Temps'   },
+  { id: 'setup',      label: 'Car Setup'    },
+];
+
+const SHOCK_TABS: { id: Tab; label: string }[] = [
+  { id: 'shocks',   label: 'Deflection' },
+  { id: 'shockvel', label: 'Velocity'   },
 ];
 
 // ── TitleBar ──────────────────────────────────────────────────────────────────
@@ -41,7 +49,7 @@ export function TitleBar() {
   return (
     <>
     <header
-      className="flex h-9 flex-shrink-0 items-stretch bg-[#0c0c0e] border-b border-border select-none"
+      className="flex h-9 shrink-0 items-stretch bg-[#0c0c0e] border-b border-border select-none"
       style={{ WebkitAppRegion: 'drag' }}
     >
       {/* ── Logo ─────────────────────────────────────────────────────────── */}
@@ -59,7 +67,29 @@ export function TitleBar() {
           className="flex items-stretch gap-0.5 px-1"
           style={{ WebkitAppRegion: 'no-drag' }}
         >
-          {TABS.map(({ id, label }) => {
+          {TABS_BEFORE.map(({ id, label }) => {
+            const active = activeTab === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={[
+                  'relative flex items-center px-3 text-[11px] font-semibold uppercase tracking-wider',
+                  'transition-colors duration-150 cursor-pointer',
+                  active ? 'text-text' : 'text-[#52525b] hover:text-[#a1a1aa]',
+                ].join(' ')}
+              >
+                {label}
+                {active && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 rounded-t-full bg-accent" />
+                )}
+              </button>
+            );
+          })}
+
+          <ShocksDropdown activeTab={activeTab} setActiveTab={setActiveTab} />
+
+          {TABS_AFTER.map(({ id, label }) => {
             const active = activeTab === id;
             return (
               <button
@@ -91,7 +121,7 @@ export function TitleBar() {
           title="Changelog"
           className="flex items-center px-2 py-0.5 rounded text-[10px] font-mono text-muted hover:text-text hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          v0.0.11
+          v0.0.12
         </button>
       </div>
 
@@ -118,6 +148,74 @@ export function TitleBar() {
 
     <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
     </>
+  );
+}
+
+// ── ShocksDropdown ────────────────────────────────────────────────────────────
+
+interface ShocksDropdownProps {
+  activeTab: Tab;
+  setActiveTab: (tab: Tab) => void;
+}
+
+function ShocksDropdown({ activeTab, setActiveTab }: ShocksDropdownProps) {
+  const [open, setOpen] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isActive = activeTab === 'shocks' || activeTab === 'shockvel';
+
+  const handleMouseEnter = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setOpen(true);
+  };
+  const handleMouseLeave = () => {
+    closeTimer.current = setTimeout(() => setOpen(false), 120);
+  };
+
+  return (
+    <div
+      className="relative flex items-stretch"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        className={[
+          'relative flex items-center gap-1 px-3 text-[11px] font-semibold uppercase tracking-wider',
+          'transition-colors duration-150 cursor-pointer',
+          isActive ? 'text-text' : 'text-[#52525b] hover:text-[#a1a1aa]',
+        ].join(' ')}
+      >
+        Shocks
+        <ChevronDownIcon
+          className={[
+            'w-2.5 h-2.5 transition-transform duration-150',
+            open ? 'rotate-180' : '',
+          ].join(' ')}
+        />
+        {isActive && (
+          <span className="absolute bottom-0 left-2 right-6 h-0.5 rounded-t-full bg-accent" />
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 z-50 min-w-27.5 rounded-b-md border border-t-0 border-border bg-[#0c0c0e] shadow-lg py-1">
+          {SHOCK_TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => { setActiveTab(id); setOpen(false); }}
+              className={[
+                'flex w-full items-center px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider',
+                'transition-colors duration-150 cursor-pointer',
+                activeTab === id
+                  ? 'text-text bg-white/5'
+                  : 'text-[#52525b] hover:text-[#a1a1aa] hover:bg-white/4',
+              ].join(' ')}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
