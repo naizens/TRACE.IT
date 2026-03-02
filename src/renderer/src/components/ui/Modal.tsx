@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { XMarkIcon } from '@heroicons/react/16/solid';
 
 interface Props {
@@ -21,9 +22,9 @@ export function Modal({ open, onClose, title, subtitle, panelClassName, children
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-x-0 bottom-0 top-9 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
@@ -46,6 +47,7 @@ export function Modal({ open, onClose, title, subtitle, panelClassName, children
 
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

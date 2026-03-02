@@ -10,6 +10,14 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.14',
+    date: '2026-03-03',
+    changes: [
+      { type: 'fix', text: 'Changelog and Settings modals can no longer be open simultaneously — opening one now closes the other' },
+      { type: 'fix', text: 'Modal backdrop no longer covers the title bar — modals are rendered via portal and confined below the title bar' },
+    ],
+  },
+  {
     version: '0.0.13',
     date: '2026-03-03',
     changes: [

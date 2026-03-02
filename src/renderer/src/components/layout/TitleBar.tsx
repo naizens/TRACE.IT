@@ -38,8 +38,7 @@ export function TitleBar() {
   const hasSessions  = useStore((s) => s.sessions.length > 0);
 
   const [isMaximized, setIsMaximized] = useState(false);
-  const [changelogOpen, setChangelogOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [openModal, setOpenModal] = useState<'changelog' | 'settings' | null>(null);
 
   useEffect(() => {
     window.electronAPI.windowControls.isMaximized().then(setIsMaximized);
@@ -120,18 +119,18 @@ export function TitleBar() {
       {/* ── Settings + Changelog ─────────────────────────────────────────── */}
       <div className="flex items-center pr-2 gap-1 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
         <button
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => setOpenModal('settings')}
           title="Settings"
           className="flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer text-muted hover:text-text hover:bg-surface-2"
         >
           <Cog6ToothIcon className="w-3.5 h-3.5" />
         </button>
         <button
-          onClick={() => setChangelogOpen(true)}
+          onClick={() => setOpenModal('changelog')}
           title="Changelog"
           className="flex items-center px-2 py-0.5 rounded text-[10px] font-mono text-muted hover:text-text hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          v0.0.13
+          v0.0.14
         </button>
       </div>
 
@@ -156,8 +155,8 @@ export function TitleBar() {
       </div>
     </header>
 
-    <ChangelogModal open={changelogOpen} onClose={() => setChangelogOpen(false)} />
-    <SettingsModal  open={settingsOpen}  onClose={() => setSettingsOpen(false)} />
+    <ChangelogModal open={openModal === 'changelog'} onClose={() => setOpenModal(null)} />
+    <SettingsModal  open={openModal === 'settings'}  onClose={() => setOpenModal(null)} />
     </>
   );
 }
