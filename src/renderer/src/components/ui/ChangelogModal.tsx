@@ -10,6 +10,16 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.16',
+    date: '2026-03-05',
+    changes: [
+      { type: 'feat',     text: 'Damper histograms now show HS/LS zone percentages (HS RBD%, LS RBD%, LS COMP%, HS COMP%) per selected lap above each corner chart' },
+      { type: 'fix',      text: 'Track map driving lines now overlay correctly — starting heading is normalized so cross-lap comparisons align on the same reference' },
+      { type: 'fix',      text: 'Track map is now hidden until at least one genuine full lap is loaded, preventing display on outlap-only sessions' },
+      { type: 'fix',      text: 'Fastest lap indicator in the lap list now correctly excludes outlaps and inlaps from consideration' },
+    ],
+  },
+  {
     version: '0.0.15',
     date: '2026-03-03',
     changes: [

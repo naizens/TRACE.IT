@@ -26,6 +26,14 @@ export function Sidebar({ trackMapRef }: Props) {
   const [width, setWidth]       = useState(260);
   const [mapHeight, setMapHeight] = useState(192);
 
+  // True only when the session has at least one genuine full lap.
+  const hasFullLap = useMemo(() => {
+    if (!session) return false;
+    const times  = session.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
+    const median = times.length > 0 ? times[Math.floor(times.length / 2)] : Infinity;
+    return times.some((t) => t >= median * 0.5);
+  }, [session]);
+
   // One entry per selected lap (max 2, in COLOR_ORDER priority).
   const trackLaps = useMemo<LapEntry[]>(() => {
     const laps: LapEntry[] = [];
@@ -36,8 +44,16 @@ export function Sidebar({ trackMapRef }: Props) {
         const colon = key.indexOf(':');
         const sIdx  = parseInt(key.substring(0, colon));
         const lIdx  = parseInt(key.substring(colon + 1));
-        const sess  = sessions[sIdx];
-        if (sess) laps.push({ session: sess, lapIdx: lIdx, color: LAP_COLORS[color] });
+        const sess = sessions[sIdx];
+        if (sess) {
+          const lap      = sess.laps[lIdx];
+          const times    = sess.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
+          const median   = times.length > 0 ? times[Math.floor(times.length / 2)] : Infinity;
+          const minFull  = median * 0.5;
+          if (lap && lap.lap_time_s >= minFull) {
+            laps.push({ session: sess, lapIdx: lIdx, color: LAP_COLORS[color] });
+          }
+        }
       }
     }
     return laps;
@@ -93,8 +109,8 @@ export function Sidebar({ trackMapRef }: Props) {
         {/* Lap list — scrollable, takes remaining space */}
         <LapList />
 
-        {/* Track map — pinned to sidebar bottom */}
-        {session && (
+        {/* Track map — pinned to sidebar bottom, only when at least one full lap exists */}
+        {hasFullLap && (
           <>
             <div className="border-t border-border mt-2 mb-1 shrink-0" />
 

@@ -52,11 +52,13 @@ function buildTrack(src: ParsedSession, lap: NonNullable<ParsedSession['laps'][n
   const dt = 1 / src.meta.tick_rate_hz;
   const xs: number[] = [], ys: number[] = [], dists: number[] = [];
   let x = 0, y = 0;
+  const yaw0 = yaw[s]; // normalize starting heading → all tracks overlay regardless of session
 
   for (let i = s; i <= e; i++) {
     xs.push(x); ys.push(y); dists.push(dist[i]);
-    x += spd[i] * Math.cos(yaw[i]) * dt;
-    y += spd[i] * Math.sin(yaw[i]) * dt;
+    const relYaw = yaw[i] - yaw0;
+    x += spd[i] * Math.cos(relYaw) * dt;
+    y += spd[i] * Math.sin(relYaw) * dt;
   }
 
   if (isNaN(xs[xs.length - 1])) return null;
@@ -156,7 +158,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       ctx.moveTo(px(t.xs[0]), py(t.ys[0]));
       for (let i = 1; i < t.xs.length; i++) ctx.lineTo(px(t.xs[i]), py(t.ys[i]));
       ctx.closePath();
-      ctx.lineWidth   = 12 / zoom;
+      ctx.lineWidth   = 64 / zoom;
       ctx.strokeStyle = '#1c1c1f';
       ctx.stroke();
     }
@@ -167,7 +169,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       ctx.moveTo(px(t.xs[0]), py(t.ys[0]));
       for (let i = 1; i < t.xs.length; i++) ctx.lineTo(px(t.xs[i]), py(t.ys[i]));
       ctx.closePath();
-      ctx.lineWidth   = 2 / zoom;
+      ctx.lineWidth   = 4 / zoom;
       ctx.strokeStyle = t.color;
       ctx.stroke();
     }
@@ -185,7 +187,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
         ctx.arc(px(t.xs[lo]), py(t.ys[lo]), 5 / zoom, 0, Math.PI * 2);
         ctx.fillStyle   = t.color;
         ctx.fill();
-        ctx.lineWidth   = 1.5 / zoom;
+        ctx.lineWidth   = 2 / zoom;
         ctx.strokeStyle = '#000';
         ctx.stroke();
       }

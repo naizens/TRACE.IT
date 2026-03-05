@@ -94,8 +94,13 @@ export function LapList() {
       </p>
 
       {sessions.map((session, sessionIdx) => {
-        const lapTimes = session.laps.map((l) => l.lap_time_s || l.duration_s);
-        const fastest  = lapTimes.reduce((min, t) => (t > 0 && t < min ? t : min), Infinity);
+        const lapTimes   = session.laps.map((l) => l.lap_time_s || l.duration_s);
+        const timedLaps  = session.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
+        const median     = timedLaps.length > 0 ? timedLaps[Math.floor(timedLaps.length / 2)] : Infinity;
+        const minFullLap = median * 0.5;
+        const fastest    = timedLaps
+          .filter((t) => t >= minFullLap)
+          .reduce((min, t) => (t < min ? t : min), Infinity);
 
         return (
           <div key={`${session._filename}-${sessionIdx}`} className="mb-2">
@@ -112,7 +117,7 @@ export function LapList() {
 
             {session.laps.map((lap, lapIdx) => {
               const t         = lapTimes[lapIdx];
-              const isFastest = t > 0 && t === fastest;
+              const isFastest = lap.lap_time_s >= minFullLap && lap.lap_time_s === fastest;
               const selKey    = `${sessionIdx}:${lapIdx}`;
               const activeColor = selections[selKey] as LapColor | undefined;
 
