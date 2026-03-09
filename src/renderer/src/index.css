@@ -8,13 +8,41 @@
   --color-border:     #27272a;  /* zinc-800  – dividers & outlines       */
   --color-muted:      #71717a;  /* zinc-500  – secondary labels          */
   --color-text:       #f4f4f5;  /* zinc-100  – primary text              */
-  --color-accent:     #169ff5;  /* brand green                           */
+  --color-accent:     #169ff5;  /* brand blue                            */
+
+  /* TitleBar-specific tokens */
+  --color-titlebar:             #0c0c0e;
+  --color-tab-inactive:         #52525b;
+  --color-tab-inactive-hover:   #a1a1aa;
+  --color-winbtn:               #52525b;
+  --color-winbtn-hover-text:    #d4d4d8;
+  --color-overlay-active:       rgba(255,255,255,0.05);
+  --color-overlay-hover:        rgba(255,255,255,0.04);
 
   /* Lap comparison colours  */
   --color-lap-ref:    #ffffff;
   --color-lap-blue:   #38bdf8;  /* sky-400   */
   --color-lap-pink:   #e879f9;  /* fuchsia-400 */
   --color-lap-lime:   #a3e635;  /* lime-400  */
+}
+
+/* ── Light mode overrides ─────────────────────────────────────────────────── */
+html.light {
+  --color-bg:        #f4f4f5;
+  --color-surface:   #ffffff;
+  --color-surface-2: #e4e4e7;
+  --color-border:    #d4d4d8;
+  --color-muted:     #71717a;
+  --color-text:      #18181b;
+  --color-accent:    #0d8ee0;
+
+  --color-titlebar:           #e8e8eb;
+  --color-tab-inactive:       #71717a;
+  --color-tab-inactive-hover: #3f3f46;
+  --color-winbtn:             #71717a;
+  --color-winbtn-hover-text:  #18181b;
+  --color-overlay-active:     rgba(0,0,0,0.07);
+  --color-overlay-hover:      rgba(0,0,0,0.05);
 }
 
 /* ── Base reset ───────────────────────────────────────────────────────────── */

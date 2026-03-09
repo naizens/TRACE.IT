@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import { TitleBar } from './components/layout/TitleBar';
 import { Sidebar } from './components/layout/Sidebar';
@@ -16,7 +16,12 @@ import { UpdateBanner } from './components/ui/UpdateBanner';
 export function App() {
   const activeTab   = useStore((s) => s.activeTab);
   const sessions    = useStore((s) => s.sessions);
+  const theme       = useStore((s) => s.theme);
   const trackMapRef = useRef<TrackMapHandle>(null);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('light', theme === 'light');
+  }, [theme]);
 
   return (
     // Full-screen column: TitleBar on top, content row below

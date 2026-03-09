@@ -24,14 +24,14 @@ export function SessionList() {
             />
             <span
               className="flex-1 truncate font-mono text-[9px]"
-              style={{ color: i === 0 ? '#d4d4d8' : '#52525b' }}
+              style={{ color: i === 0 ? 'var(--color-text)' : 'var(--color-muted)' }}
               title={session._filename}
             >
               {session._filename}
             </span>
             <button
               onClick={() => removeSession(i)}
-              className="text-[#3f3f46] hover:text-red-500 transition-colors text-[11px] leading-none cursor-pointer"
+              className="text-muted hover:text-red-500 transition-colors text-[11px] leading-none cursor-pointer"
               title="Remove session"
             >
               ✕

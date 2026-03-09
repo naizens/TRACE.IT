@@ -3,7 +3,7 @@ import type { RefObject } from 'react';
 import { Line } from 'react-chartjs-2';
 import type { ChartData, ChartOptions, Plugin, Chart } from 'chart.js';
 import { useStore } from '../../store/useStore';
-import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { getLapColor, COLOR_ORDER } from '../../lib/constants';
 import { interpolate } from '../../lib/interpolate';
 import { arrayMax, darken } from '../../lib/formatters';
 import { useChartSync } from '../../hooks/useChartSync';
@@ -218,7 +218,7 @@ function buildShockData(
     .sort((a, b) => COLOR_ORDER.indexOf(a.color) - COLOR_ORDER.indexOf(b.color));
 
   for (const { color, sessionIdx, lapNum, lap, sess } of sorted) {
-    const hex   = LAP_COLORS[color];
+    const hex   = getLapColor(color);
     const label = multiSession ? `S${sessionIdx + 1}·L${lapNum}` : `L${lapNum}`;
 
     const s = lap.start_idx;
@@ -347,6 +347,15 @@ function ShockPanel({
   );
 }
 
+// ── Panel definitions ─────────────────────────────────────────────────────────
+
+const PANELS = [
+  { id: 'shock-front', label: 'Front', legend: 'bright = LF · dark = RF' },
+  { id: 'shock-rear',  label: 'Rear',  legend: 'bright = LR · dark = RR' },
+] as const;
+type PanelId = typeof PANELS[number]['id'];
+const INITIAL_FLEX: Record<string, number> = { 'shock-front': 1, 'shock-rear': 1 };
+
 // ── ShocksView ────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -405,25 +414,37 @@ export function ShocksView({ trackMapRef }: Props) {
   const registerChart   = useCallback((id: string, c: Chart) => register(id, c),  [register]);
   const unregisterChart = useCallback((id: string) => unregister(id), [unregister]);
 
+  const [visiblePanels, setVisiblePanels] = useState<Set<string>>(
+    () => new Set(PANELS.map((p) => p.id)),
+  );
+  const togglePanel = useCallback((id: string) => {
+    setVisiblePanels((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
   // Panel resize
-  const [flexValues, setFlexValues] = useState([1, 1]);
+  const [flexMap, setFlexMap] = useState<Record<string, number>>(INITIAL_FLEX);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleResizeStart = useCallback(
-    (i: number) => (e: React.MouseEvent) => {
+    (idA: string, idB: string) => (e: React.MouseEvent) => {
       e.preventDefault();
       const startY    = e.clientY;
-      const startFlex = [...flexValues];
-      const totalFlex = startFlex.reduce((a, b) => a + b, 0);
+      const startFlex = { ...flexMap };
+      const totalFlex = Object.values(startFlex).reduce((a, b) => a + b, 0);
 
       const onMouseMove = (ev: MouseEvent) => {
         const dy          = ev.clientY - startY;
         const totalHeight = containerRef.current?.clientHeight ?? 400;
         const dyFlex      = (dy / totalHeight) * totalFlex;
-        const next = [...startFlex];
-        next[i]     = Math.max(0.25, startFlex[i]     + dyFlex);
-        next[i + 1] = Math.max(0.25, startFlex[i + 1] - dyFlex);
-        setFlexValues(next);
+        setFlexMap((prev) => ({
+          ...prev,
+          [idA]: Math.max(0.25, (startFlex[idA] ?? 1) + dyFlex),
+          [idB]: Math.max(0.25, (startFlex[idB] ?? 1) - dyFlex),
+        }));
       };
 
       const onMouseUp = () => {
@@ -438,10 +459,10 @@ export function ShocksView({ trackMapRef }: Props) {
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup',   onMouseUp);
     },
-    [flexValues],
+    [flexMap],
   );
 
-  const resetFlex = useCallback(() => setFlexValues([1, 1]), []);
+  const resetFlex = useCallback(() => setFlexMap(INITIAL_FLEX), []);
 
   if (sessions.length === 0) {
     return (
@@ -470,23 +491,34 @@ export function ShocksView({ trackMapRef }: Props) {
           Shock Deflection
         </span>
         <span className="text-[10px] text-muted">· mm · over lap distance</span>
-        <div className="flex items-center gap-3 ml-auto text-[9px] text-muted">
+        <div className="flex items-center gap-1.5 ml-auto">
+          {PANELS.map((p) => {
+            const active = visiblePanels.has(p.id);
+            return (
+              <button
+                key={p.id}
+                onClick={() => togglePanel(p.id)}
+                className={[
+                  'px-2 py-0.5 text-[10px] font-medium rounded border cursor-pointer transition-colors',
+                  active ? 'border-border bg-surface-2 text-text' : 'border-border/30 text-muted/40',
+                ].join(' ')}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3 text-[9px] text-muted">
           <span className="flex items-center gap-1">
-            <svg width="18" height="6" viewBox="0 0 18 6">
-              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
+            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" /></svg>
             Left
           </span>
           <span className="flex items-center gap-1">
-            <svg width="18" height="6" viewBox="0 0 18 6">
-              <line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45" />
-            </svg>
+            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="currentColor" strokeWidth="1.5" strokeOpacity="0.45" /></svg>
             Right
           </span>
           <span className="flex items-center gap-1">
-            <svg width="18" height="6" viewBox="0 0 18 6">
-              <line x1="0" y1="3" x2="18" y2="3" stroke="rgba(255,200,0,0.7)" strokeWidth="1" strokeDasharray="5 4" />
-            </svg>
+            <svg width="18" height="6" viewBox="0 0 18 6"><line x1="0" y1="3" x2="18" y2="3" stroke="rgba(255,200,0,0.7)" strokeWidth="1" strokeDasharray="5 4" /></svg>
             Bump rubber gap
           </span>
         </div>
@@ -496,46 +528,43 @@ export function ShocksView({ trackMapRef }: Props) {
         <div className="flex flex-1 items-center justify-center text-muted text-xs tracking-wider uppercase select-none">
           Select laps from the sidebar to compare
         </div>
-      ) : (
-        <div ref={containerRef} className="flex flex-col flex-1 min-h-0">
-          <div style={{ flex: flexValues[0] }} className="relative flex flex-col min-h-0">
-            <ShockPanel
-              id="shock-front"
-              label="Front"
-              legend="bright = LF · dark = RF"
-              chartData={data?.front ?? empty}
-              options={chartOptions.front}
-              bumpRubberPlugin={frontPlugin}
-              onRegister={registerChart}
-              onUnregister={unregisterChart}
-              onWheelPan={handleZoom}
-              onDblClick={handleDblClick}
-            />
-            <div
-              className="absolute bottom-0 inset-x-0 h-4 translate-y-1/2 z-10 cursor-ns-resize group"
-              onMouseDown={handleResizeStart(0)}
-              onDoubleClick={resetFlex}
-            >
-              <div className="absolute inset-x-0 top-1/2 h-px bg-border pointer-events-none" />
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-2 rounded-full bg-surface-2 border border-border group-hover:border-accent/50 transition-colors pointer-events-none" />
-            </div>
+      ) : (() => {
+        const visible = PANELS.filter((p) => visiblePanels.has(p.id));
+        const panelData = (id: PanelId) =>
+          id === 'shock-front' ? (data?.front ?? empty) : (data?.rear ?? empty);
+        const panelPlugin = (id: PanelId) =>
+          id === 'shock-front' ? frontPlugin : rearPlugin;
+        return (
+          <div ref={containerRef} className="flex flex-col flex-1 min-h-0">
+            {visible.map((p, i) => (
+              <div key={p.id} style={{ flex: flexMap[p.id] }} className="relative flex flex-col min-h-0">
+                <ShockPanel
+                  id={p.id}
+                  label={p.label}
+                  legend={p.legend}
+                  chartData={panelData(p.id)}
+                  options={chartOptions[p.id === 'shock-front' ? 'front' : 'rear']}
+                  bumpRubberPlugin={panelPlugin(p.id)}
+                  onRegister={registerChart}
+                  onUnregister={unregisterChart}
+                  onWheelPan={handleZoom}
+                  onDblClick={handleDblClick}
+                />
+                {i < visible.length - 1 && (
+                  <div
+                    className="absolute bottom-0 inset-x-0 h-4 translate-y-1/2 z-10 cursor-ns-resize group"
+                    onMouseDown={handleResizeStart(p.id, visible[i + 1].id)}
+                    onDoubleClick={resetFlex}
+                  >
+                    <div className="absolute inset-x-0 top-1/2 h-px bg-border pointer-events-none" />
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-2 rounded-full bg-surface-2 border border-border group-hover:border-accent/50 transition-colors pointer-events-none" />
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
-          <div style={{ flex: flexValues[1] }} className="flex flex-col min-h-0">
-            <ShockPanel
-              id="shock-rear"
-              label="Rear"
-              legend="bright = LR · dark = RR"
-              chartData={data?.rear ?? empty}
-              options={chartOptions.rear}
-              bumpRubberPlugin={rearPlugin}
-              onRegister={registerChart}
-              onUnregister={unregisterChart}
-              onWheelPan={handleZoom}
-              onDblClick={handleDblClick}
-            />
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

@@ -124,7 +124,10 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
     }
 
     const ctx = canvas.getContext('2d')!;
-    ctx.clearRect(0, 0, W, H);
+    const bgColor = getComputedStyle(document.documentElement)
+      .getPropertyValue('--color-surface-2').trim() || '#1c1c1f';
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, W, H);
 
     const tracks = tracksRef.current;
     if (!tracks.length) return;
@@ -152,14 +155,14 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
     ctx.translate(offsetX, offsetY);
     ctx.scale(zoom, zoom);
 
-    // ── Dark road surface ──────────────────────────────────────────────────
+    // ── Road surface (matches canvas background so only the driving lines show)
     for (const t of tracks) {
       ctx.beginPath();
       ctx.moveTo(px(t.xs[0]), py(t.ys[0]));
       for (let i = 1; i < t.xs.length; i++) ctx.lineTo(px(t.xs[i]), py(t.ys[i]));
       ctx.closePath();
       ctx.lineWidth   = 64 / zoom;
-      ctx.strokeStyle = '#1c1c1f';
+      ctx.strokeStyle = bgColor;
       ctx.stroke();
     }
 

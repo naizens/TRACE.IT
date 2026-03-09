@@ -80,6 +80,7 @@ const NEEDED_VARS = new Set([
   'LFshockDefl', 'RFshockDefl', 'LRshockDefl', 'RRshockDefl',
   // Weather
   'AirTemp', 'TrackTemp',
+  // Driving line lateral offset uses Speed + Yaw (already extracted above)
 ]);
 
 // ─── Parser ──────────────────────────────────────────────────────────────────

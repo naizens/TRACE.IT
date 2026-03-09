@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
 import { Bar } from 'react-chartjs-2';
 import type { Chart, ChartData, ChartOptions, Plugin } from 'chart.js';
 import { useStore } from '../../store/useStore';
-import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { getLapColor, COLOR_ORDER } from '../../lib/constants';
 
 // ── Histogram axis ─────────────────────────────────────────────────────────────
 // Bin CENTERS spaced evenly with BIN_STEP, symmetric around 0.
@@ -283,6 +283,16 @@ export function DamperView() {
 
   const [lsThreshold, setLsThreshold] = useState<LsThreshold>(50);
   const [range, setRange]             = useState<RangeOption>(200);
+  const [visibleCorners, setVisibleCorners] = useState<Set<string>>(
+    () => new Set(CORNERS.map((c) => c.key)),
+  );
+  const toggleCorner = useCallback((key: string) => {
+    setVisibleCorners((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
 
   const { labels: binLabels } = useMemo(() => makeBins(range), [range]);
 
@@ -331,7 +341,7 @@ export function DamperView() {
 
       for (const { color, lapInfo, session: sess, sessionIdx } of selectedLaps) {
         const raw      = sess.data[key]?.slice(lapInfo.start_idx, lapInfo.end_idx + 1) ?? new Float32Array();
-        const hexColor = LAP_COLORS[color];
+        const hexColor = getLapColor(color);
         const lapLabel = multiSession ? `S${sessionIdx + 1}·L${lapInfo.lap}` : `L${lapInfo.lap}`;
         const { data, bg, border } = buildHistogram(raw, range, binLabels, lsThreshold, hexColor);
         const zones = computeZones(raw, lsThreshold);
@@ -394,6 +404,25 @@ export function DamperView() {
           <span className="text-[10px] text-muted">· shock velocity · mm/s</span>
         </div>
 
+        {/* Corner toggles */}
+        <div className="flex items-center gap-1.5">
+          {CORNERS.map((c) => {
+            const active = visibleCorners.has(c.key);
+            return (
+              <button
+                key={c.key}
+                onClick={() => toggleCorner(c.key)}
+                className={[
+                  'px-2 py-0.5 text-[10px] font-medium rounded border cursor-pointer transition-colors',
+                  active ? 'border-border bg-surface-2 text-text' : 'border-border/30 text-muted/40',
+                ].join(' ')}
+              >
+                {c.key.replace('shockVel', '')}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex items-center gap-3 ml-auto">
           {/* Range selector */}
           <div className="flex items-center gap-1.5">
@@ -439,9 +468,9 @@ export function DamperView() {
         </div>
       </div>
 
-      {/* 2 × 2 grid */}
-      <div className="grid grid-cols-2 grid-rows-2 gap-4 flex-1 min-h-0">
-        {CORNERS.map((corner, i) => (
+      {/* 2-col grid, rows adapt to visible count */}
+      <div className="grid grid-cols-2 gap-4 flex-1 min-h-0" style={{ gridTemplateRows: `repeat(${Math.ceil(visibleCorners.size / 2)}, 1fr)` }}>
+        {CORNERS.map((corner, i) => visibleCorners.has(corner.key) && (
           <CornerHistogram
             key={corner.key}
             label={corner.label}

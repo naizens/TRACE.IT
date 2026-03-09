@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CheckIcon } from '@heroicons/react/16/solid';
 import { useStore } from '../../store/useStore';
-import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { getLapColor, COLOR_ORDER } from '../../lib/constants';
 import { formatLapTime } from '../../lib/formatters';
 import type { LapColor, ParsedSession, LapInfo } from '../../types/session';
 
@@ -141,14 +141,14 @@ export function LapList() {
                           title={`Assign ${color} to Lap ${lap.lap}`}
                           className="w-3.5 h-3.5 rounded-sm border cursor-pointer transition-all hover:scale-110 focus:outline-none flex items-center justify-center"
                           style={{
-                            borderColor: isActive ? LAP_COLORS[color] : 'rgba(255,255,255,0.15)',
-                            background:  isActive ? `${LAP_COLORS[color]}22` : 'transparent',
+                            borderColor: isActive ? getLapColor(color) : 'var(--color-border)',
+                            background:  isActive ? `${getLapColor(color)}22` : 'transparent',
                           }}
                         >
                           {isActive && (
                             <CheckIcon
                               className="w-2.5 h-2.5"
-                              style={{ color: LAP_COLORS[color] }}
+                              style={{ color: getLapColor(color) }}
                             />
                           )}
                         </button>

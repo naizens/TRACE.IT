@@ -3,7 +3,7 @@ import type { RefObject } from 'react';
 import { Line } from 'react-chartjs-2';
 import type { ChartData, ChartOptions, Chart } from 'chart.js';
 import { useStore } from '../../store/useStore';
-import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { getLapColor, COLOR_ORDER } from '../../lib/constants';
 import { interpolate } from '../../lib/interpolate';
 import { arrayMax, darken } from '../../lib/formatters';
 import { useChartSync } from '../../hooks/useChartSync';
@@ -127,7 +127,7 @@ function buildShockVelData(
     .sort((a, b) => COLOR_ORDER.indexOf(a.color) - COLOR_ORDER.indexOf(b.color));
 
   for (const { color, sessionIdx, lapNum, lap, sess } of sorted) {
-    const hex   = LAP_COLORS[color];
+    const hex   = getLapColor(color);
     const label = multiSession ? `S${sessionIdx + 1}·L${lapNum}` : `L${lapNum}`;
 
     const s = lap.start_idx;

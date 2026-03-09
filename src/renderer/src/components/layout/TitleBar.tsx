@@ -51,7 +51,7 @@ export function TitleBar() {
   return (
     <>
     <header
-      className="flex h-9 shrink-0 items-stretch bg-[#0c0c0e] border-b border-border select-none"
+      className="flex h-9 shrink-0 items-stretch bg-titlebar border-b border-border select-none"
       style={{ WebkitAppRegion: 'drag' }}
     >
       {/* ── Logo ─────────────────────────────────────────────────────────── */}
@@ -78,7 +78,7 @@ export function TitleBar() {
                 className={[
                   'relative flex items-center px-3 text-[11px] font-semibold uppercase tracking-wider',
                   'transition-colors duration-150 cursor-pointer',
-                  active ? 'text-text' : 'text-[#52525b] hover:text-[#a1a1aa]',
+                  active ? 'text-text' : 'text-tab-inactive hover:text-tab-inactive-hover',
                 ].join(' ')}
               >
                 {label}
@@ -100,7 +100,7 @@ export function TitleBar() {
                 className={[
                   'relative flex items-center px-3 text-[11px] font-semibold uppercase tracking-wider',
                   'transition-colors duration-150 cursor-pointer',
-                  active ? 'text-text' : 'text-[#52525b] hover:text-[#a1a1aa]',
+                  active ? 'text-text' : 'text-tab-inactive hover:text-tab-inactive-hover',
                 ].join(' ')}
               >
                 {label}
@@ -191,7 +191,7 @@ function ShocksDropdown({ activeTab, setActiveTab }: ShocksDropdownProps) {
         className={[
           'relative flex items-center gap-1 px-3 text-[11px] font-semibold uppercase tracking-wider',
           'transition-colors duration-150 cursor-pointer',
-          isActive ? 'text-text' : 'text-[#52525b] hover:text-[#a1a1aa]',
+          isActive ? 'text-text' : 'text-tab-inactive hover:text-tab-inactive-hover',
         ].join(' ')}
       >
         Shocks
@@ -207,7 +207,7 @@ function ShocksDropdown({ activeTab, setActiveTab }: ShocksDropdownProps) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 z-50 min-w-27.5 rounded-b-md border border-t-0 border-border bg-[#0c0c0e] shadow-lg py-1">
+        <div className="absolute top-full left-0 z-50 min-w-27.5 rounded-b-md border border-t-0 border-border bg-titlebar shadow-lg py-1">
           {SHOCK_TABS.map(({ id, label }) => (
             <button
               key={id}
@@ -216,8 +216,8 @@ function ShocksDropdown({ activeTab, setActiveTab }: ShocksDropdownProps) {
                 'flex w-full items-center px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider',
                 'transition-colors duration-150 cursor-pointer',
                 activeTab === id
-                  ? 'text-text bg-white/5'
-                  : 'text-[#52525b] hover:text-[#a1a1aa] hover:bg-white/4',
+                  ? 'text-text bg-overlay-active'
+                  : 'text-tab-inactive hover:text-tab-inactive-hover hover:bg-overlay-hover',
               ].join(' ')}
             >
               {label}
@@ -246,10 +246,10 @@ function WinButton({ onClick, label, danger = false, children }: WinButtonProps)
       aria-label={label}
       className={[
         'flex items-center justify-center w-11 h-full',
-        'text-[#52525b] transition-all duration-150 cursor-default',
+        'text-winbtn transition-all duration-150 cursor-default',
         danger
           ? 'hover:bg-red-600/90 hover:text-white'
-          : 'hover:bg-white/[0.07] hover:text-[#d4d4d8]',
+          : 'hover:bg-overlay-active hover:text-winbtn-hover-text',
       ].join(' ')}
     >
       {children}

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
+import { useStore } from '../../store/useStore';
+import type { Theme } from '../../store/useStore';
+import { SunIcon, MoonIcon } from '@heroicons/react/16/solid';
 
 interface Config {
   hardwareAcceleration: boolean;
@@ -14,6 +17,8 @@ export function SettingsModal({ open, onClose }: Props) {
   const [config, setConfig] = useState<Config | null>(null);
   const [dirty, setDirty]   = useState(false);
   const [saving, setSaving] = useState(false);
+  const theme    = useStore((s) => s.theme);
+  const setTheme = useStore((s) => s.setTheme);
 
   useEffect(() => {
     if (open) window.electronAPI.settings.get().then(setConfig);
@@ -31,6 +36,19 @@ export function SettingsModal({ open, onClose }: Props) {
   return (
     <Modal open={open} onClose={onClose} title="Settings" subtitle="Changes marked with * require a restart to take effect.">
       <div className="px-5 py-4 flex flex-col gap-4">
+
+        {/* Section: Appearance */}
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted">Appearance</h3>
+          <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-lg bg-bg border border-border">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-[12px] font-semibold text-text">Theme</span>
+              <span className="text-[11px] text-muted leading-relaxed">Switch between dark and light mode.</span>
+            </div>
+            <ThemeToggle theme={theme} onChange={setTheme} />
+          </div>
+        </div>
+
         {/* Section: Performance */}
         <div className="flex flex-col gap-2">
           <h3 className="text-[10px] font-semibold uppercase tracking-widest text-muted">Performance</h3>
@@ -82,6 +100,33 @@ function SettingRow({ label, description, checked, onChange }: SettingRowProps) 
         <span className="text-[11px] text-muted leading-relaxed">{description}</span>
       </div>
       <Toggle checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
+// ── ThemeToggle ────────────────────────────────────────────────────────────────
+
+function ThemeToggle({ theme, onChange }: { theme: Theme; onChange: (t: Theme) => void }) {
+  return (
+    <div className="flex items-center gap-1 p-0.5 rounded-lg bg-surface-2 border border-border">
+      {(['dark', 'light'] as Theme[]).map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          title={t === 'dark' ? 'Dark mode' : 'Light mode'}
+          className={[
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors duration-150 cursor-pointer',
+            theme === t
+              ? 'bg-surface text-text shadow-sm'
+              : 'text-muted hover:text-text',
+          ].join(' ')}
+        >
+          {t === 'dark'
+            ? <MoonIcon className="w-3 h-3" />
+            : <SunIcon className="w-3 h-3" />}
+          {t === 'dark' ? 'Dark' : 'Light'}
+        </button>
+      ))}
     </div>
   );
 }

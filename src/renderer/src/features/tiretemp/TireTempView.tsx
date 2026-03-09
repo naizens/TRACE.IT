@@ -4,7 +4,7 @@ import type { RefObject } from 'react';
 import type { ChartOptions } from 'chart.js';
 import type { Chart } from 'chart.js';
 import { useStore } from '../../store/useStore';
-import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { getLapColor, COLOR_ORDER } from '../../lib/constants';
 import { interpolate } from '../../lib/interpolate';
 import { arrayMax, darken } from '../../lib/formatters';
 import { ChartPanel } from '../telemetry/ChartPanel';
@@ -19,13 +19,12 @@ import type { TrackMapHandle } from '../trackmap';
 
 const CORNERS = [
   { id: 'LF', label: 'Left Front',  keys: ['LFtempL', 'LFtempM', 'LFtempR'] },
-  { id: 'RF', label: 'Right Front', keys: ['RFtempL', 'RFtempM', 'RFtempR'] },
+  { id: 'RF', label: 'Right Front', keys: ['RFtempR', 'RFtempM', 'RFtempL'] },
   { id: 'LR', label: 'Left Rear',   keys: ['LRtempL', 'LRtempM', 'LRtempR'] },
-  { id: 'RR', label: 'Right Rear',  keys: ['RRtempL', 'RRtempM', 'RRtempR'] },
+  { id: 'RR', label: 'Right Rear',  keys: ['RRtempR', 'RRtempM', 'RRtempL'] },
 ] as const;
 
-// Outer / Mid / Inner — CL is the outboard edge for left tires, inboard for right tires.
-// Labels are intentionally position-agnostic so both sides read consistently.
+// Outer / Mid / Inner — left tires: tempL=outer, tempR=inner; right tires: tempR=outer, tempL=inner.
 const POS_LABELS = ['Outer', 'Mid', 'Inner'] as const;
 
 // 0 = full colour, higher = darker (mixed toward black)
@@ -121,6 +120,17 @@ export function TireTempView({ trackMapRef }: Props) {
 
   const [yMin, setYMin] = useState(20);
   const [yMax, setYMax] = useState(140);
+  const [visibleCorners, setVisibleCorners] = useState<Set<string>>(
+    () => new Set(CORNERS.map((c) => c.id)),
+  );
+
+  const toggleCorner = useCallback((id: string) => {
+    setVisibleCorners((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   const TEMP_STEPS = Array.from({ length: 13 }, (_, i) => 20 + i * 10); // 20..140
 
@@ -183,7 +193,7 @@ export function TireTempView({ trackMapRef }: Props) {
         keys.forEach((key, pi) => {
           const raw = (sess.data[key] ?? new Float32Array()).slice(lap.start_idx, lap.end_idx + 1);
           datasets.push({
-            borderColor: darken(LAP_COLORS[color], POS_DARKEN[pi]),
+            borderColor: darken(getLapColor(color), POS_DARKEN[pi]),
             borderWidth: 1,
             pointRadius: 0,
             pointHoverRadius: 4,
@@ -264,17 +274,33 @@ export function TireTempView({ trackMapRef }: Props) {
           <span className="text-[10px] text-muted">°C</span>
         </div>
 
+        {/* Corner toggles */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          {CORNERS.map((c) => {
+            const active = visibleCorners.has(c.id);
+            return (
+              <button
+                key={c.id}
+                onClick={() => toggleCorner(c.id)}
+                className={[
+                  'px-2 py-0.5 text-[10px] font-medium rounded border cursor-pointer transition-colors',
+                  active
+                    ? 'border-border bg-surface-2 text-text'
+                    : 'border-border/30 text-muted/40',
+                ].join(' ')}
+              >
+                {c.id}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Brightness legend */}
-        <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-4">
           {POS_LABELS.map((lbl, i) => (
             <div key={lbl} className="flex items-center gap-1.5">
               <svg width="22" height="8" viewBox="0 0 22 8">
-                <line
-                  x1="1" y1="4" x2="21" y2="4"
-                  stroke={darken('#71717a', POS_DARKEN[i])}
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                />
+                <line x1="1" y1="4" x2="21" y2="4" stroke={darken('#71717a', POS_DARKEN[i])} strokeWidth="1.5" strokeLinecap="round" />
               </svg>
               <span className="text-[10px] text-muted uppercase tracking-wider">{lbl}</span>
             </div>
@@ -288,8 +314,8 @@ export function TireTempView({ trackMapRef }: Props) {
           Select laps from the sidebar to compare
         </div>
       ) : (
-        <div className="grid grid-cols-2 grid-rows-2 gap-2 flex-1 min-h-0">
-          {CORNERS.map((corner, i) => (
+        <div className="grid grid-cols-2 gap-2 flex-1 min-h-0" style={{ gridTemplateRows: `repeat(${Math.ceil(visibleCorners.size / 2)}, 1fr)` }}>
+          {CORNERS.map((corner, i) => visibleCorners.has(corner.id) && (
             <ChartPanel
               key={corner.id}
               id={corner.id}

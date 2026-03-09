@@ -11,6 +11,14 @@ export const LAP_COLORS: Record<LapColor, string> = {
 /** Rendering priority: ref is always first (the "baseline" lap) */
 export const COLOR_ORDER: LapColor[] = ['ref', 'blue', 'pink', 'lime'];
 
+/** Returns the display color for a lap, substituting white → gray in light mode */
+export function getLapColor(color: LapColor): string {
+  if (color === 'ref' && document.documentElement.classList.contains('light')) {
+    return '#71717a';
+  }
+  return LAP_COLORS[color];
+}
+
 // ── Telemetry chart channel definitions ──────────────────────────────────────
 export interface ChartConfig {
   id: string;
@@ -35,5 +43,6 @@ export const CHART_CONFIGS: ChartConfig[] = [
   { id: 'spd',   label: 'Speed  km/h',     dataKey: 'Speed',              multiplier: 3.6, fixedScale: false, flex: 2.8, stepped: false },
   { id: 'str',   label: 'Steering  deg',   dataKey: 'SteeringWheelAngle', multiplier: 1,   fixedScale: false, flex: 2.8, stepped: false },
   { id: 'delta', label: 'Time Delta  s',   dataKey: null,                 multiplier: 1,   fixedScale: false, flex: 1.2, stepped: false },
+  { id: 'line',  label: 'Driving Line  m', dataKey: null,                 multiplier: 1,       fixedScale: false, flex: 2.8, stepped: false },
 ];
 

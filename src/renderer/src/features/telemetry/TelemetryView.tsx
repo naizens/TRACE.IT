@@ -15,12 +15,23 @@ interface Props {
   trackMapRef: RefObject<TrackMapHandle>;
 }
 
-const INITIAL_FLEX = CHART_CONFIGS.map((c) => c.flex);
+const INITIAL_FLEX_MAP: Record<string, number> = Object.fromEntries(CHART_CONFIGS.map((c) => [c.id, c.flex]));
 
 export function TelemetryView({ trackMapRef }: Props) {
   const sessions   = useStore((s) => s.sessions);
   const selections = useStore((s) => s.selections);
   const session    = sessions[0] ?? null;
+
+  const [visibleCharts, setVisibleCharts] = useState<Set<string>>(
+    () => new Set(CHART_CONFIGS.map((c) => c.id)),
+  );
+  const toggleChart = useCallback((id: string) => {
+    setVisibleCharts((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
 
   const onMapUpdate = useTrackMapUpdate(trackMapRef);
 
@@ -61,25 +72,26 @@ export function TelemetryView({ trackMapRef }: Props) {
   const unregisterChart = useCallback((id: string) => unregister(id), [unregister]);
 
   // ── Panel resize ──────────────────────────────────────────────────────────
-  const [flexValues, setFlexValues] = useState<number[]>(INITIAL_FLEX);
+  const [flexMap, setFlexMap] = useState<Record<string, number>>(INITIAL_FLEX_MAP);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Capture current flex at drag-start so the mousemove closure has no stale values
   const handleResizeStart = useCallback(
-    (i: number) => (e: React.MouseEvent) => {
+    (idA: string, idB: string) => (e: React.MouseEvent) => {
       e.preventDefault();
       const startY    = e.clientY;
-      const startFlex = [...flexValues];
-      const totalFlex = startFlex.reduce((a, b) => a + b, 0);
+      const startFlex = { ...flexMap };
+      const totalFlex = Object.values(startFlex).reduce((a, b) => a + b, 0);
 
       const onMouseMove = (ev: MouseEvent) => {
         const dy          = ev.clientY - startY;
         const totalHeight = containerRef.current?.clientHeight ?? 400;
         const dyFlex      = (dy / totalHeight) * totalFlex;
-        const next = [...startFlex];
-        next[i]     = Math.max(0.25, startFlex[i]     + dyFlex);
-        next[i + 1] = Math.max(0.25, startFlex[i + 1] - dyFlex);
-        setFlexValues(next);
+        setFlexMap((prev) => ({
+          ...prev,
+          [idA]: Math.max(0.25, (startFlex[idA] ?? 1) + dyFlex),
+          [idB]: Math.max(0.25, (startFlex[idB] ?? 1) - dyFlex),
+        }));
       };
 
       const onMouseUp = () => {
@@ -94,10 +106,10 @@ export function TelemetryView({ trackMapRef }: Props) {
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup',   onMouseUp);
     },
-    [flexValues],
+    [flexMap],
   );
 
-  const resetFlex = useCallback(() => setFlexValues(INITIAL_FLEX), []);
+  const resetFlex = useCallback(() => setFlexMap(INITIAL_FLEX_MAP), []);
 
   // ── Empty state ───────────────────────────────────────────────────────────
   if (!session) {
@@ -109,32 +121,53 @@ export function TelemetryView({ trackMapRef }: Props) {
     );
   }
 
+  const visibleConfigs = CHART_CONFIGS.filter((c) => visibleCharts.has(c.id));
+
   return (
-    <div className="flex-1 flex gap-2 p-2 overflow-hidden min-h-0">
+    <div className="flex-1 flex flex-col gap-0 p-2 overflow-hidden min-h-0">
+      {/* ── Channel toggles ───────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5 shrink-0 pb-1.5">
+        {CHART_CONFIGS.map((cfg) => {
+          const active = visibleCharts.has(cfg.id);
+          return (
+            <button
+              key={cfg.id}
+              onClick={() => toggleChart(cfg.id)}
+              className={[
+                'px-2 py-0.5 text-[10px] font-medium rounded border cursor-pointer transition-colors',
+                active ? 'border-border bg-surface-2 text-text' : 'border-border/30 text-muted/40',
+              ].join(' ')}
+            >
+              {cfg.label.split(' ')[0]}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Chart column ──────────────────────────────────────────────────── */}
-      <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
         {Object.keys(selections).length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-muted text-xs tracking-wider uppercase select-none">
             Select laps from the sidebar to compare
           </div>
         ) : (
-          CHART_CONFIGS.map((cfg, i) => (
-            <div key={cfg.id} className="relative flex flex-col min-h-0" style={{ flex: flexValues[i] }}>
+          visibleConfigs.map((cfg, i) => (
+            <div key={cfg.id} className="relative flex flex-col min-h-0" style={{ flex: flexMap[cfg.id] }}>
               <ChartPanel
                 id={cfg.id}
                 label={cfg.label}
                 datasets={chartData?.datasets[cfg.id as keyof typeof chartData.datasets] ?? []}
-                options={chartOptions[i]}
+                options={chartOptions[CHART_CONFIGS.findIndex((c) => c.id === cfg.id)]}
                 flex={1}
                 onRegister={registerChart}
                 onUnregister={unregisterChart}
                 onDblClick={handleDblClick}
                 onWheelPan={handleZoom}
               />
-              {i < CHART_CONFIGS.length - 1 && (
+              {i < visibleConfigs.length - 1 && (
                 <div
                   className="absolute bottom-0 inset-x-0 h-4 translate-y-1/2 z-10 cursor-ns-resize group"
-                  onMouseDown={handleResizeStart(i)}
+                  onMouseDown={handleResizeStart(cfg.id, visibleConfigs[i + 1].id)}
                   onDoubleClick={resetFlex}
                 >
                   <div className="absolute inset-x-0 top-1/2 h-px bg-border pointer-events-none" />

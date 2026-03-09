@@ -3,11 +3,13 @@ import type { ParsedSession, LapSelections, LapColor } from '../types/session';
 import { COLOR_ORDER } from '../lib/constants';
 
 export type Tab = 'telemetry' | 'setup' | 'damper' | 'rideheight' | 'tiretemp' | 'shocks' | 'shockvel';
+export type Theme = 'dark' | 'light';
 
 interface State {
   sessions: ParsedSession[];
   selections: LapSelections;
   activeTab: Tab;
+  theme: Theme;
 
   // Actions
   addSessions: (incoming: ParsedSession[]) => void;
@@ -15,12 +17,14 @@ interface State {
   setActiveTab: (tab: Tab) => void;
   toggleLapColor: (sessionIdx: number, lapIdx: number, color: LapColor) => void;
   clearSelections: () => void;
+  setTheme: (theme: Theme) => void;
 }
 
 export const useStore = create<State>((set) => ({
   sessions: [],
   selections: {},
   activeTab: 'telemetry',
+  theme: (localStorage.getItem('theme') as Theme) ?? 'dark',
 
   addSessions: (incoming) =>
     set((s) => ({ sessions: [...s.sessions, ...incoming], selections: {} })),
@@ -66,4 +70,9 @@ export const useStore = create<State>((set) => ({
     }),
 
   clearSelections: () => set({ selections: {} }),
+
+  setTheme: (theme) => {
+    localStorage.setItem('theme', theme);
+    set({ theme });
+  },
 }));

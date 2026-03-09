@@ -1,7 +1,51 @@
 import type { ParsedSession, LapSelections } from '../types/session';
-import { LAP_COLORS, COLOR_ORDER } from './constants';
+import { getLapColor, COLOR_ORDER } from './constants';
 import { interpolate } from './interpolate';
 import { arrayMax } from './formatters';
+
+/**
+ * Dead-reckoning XY for a lap (same formula as the TrackMap canvas).
+ * Returns Float32Arrays in metres from the lap start position.
+ */
+function deadReckon(
+  spd:  ArrayLike<number>,
+  yaw:  ArrayLike<number>,
+  time: ArrayLike<number>,
+): { x: Float32Array; y: Float32Array } {
+  const n = spd.length;
+  const x = new Float32Array(n);
+  const y = new Float32Array(n);
+  for (let i = 1; i < n; i++) {
+    const dt = time[i] - time[i - 1];
+    x[i] = x[i - 1] + spd[i] * Math.cos(yaw[i]) * dt;
+    y[i] = y[i - 1] + spd[i] * Math.sin(yaw[i]) * dt;
+  }
+  return { x, y };
+}
+
+/**
+ * Lateral offset of a comparison lap vs the reference lap, in metres.
+ * At each track distance we project the XY difference onto the track
+ * normal (⊥ to the reference heading): left = +, right = −.
+ */
+function computeLateralOffset(
+  lapSpd:  ArrayLike<number>, lapYaw: ArrayLike<number>, lapTime: ArrayLike<number>, lapDist: ArrayLike<number>,
+  refSpd:  ArrayLike<number>, refYaw: ArrayLike<number>, refTime: ArrayLike<number>, refDist: ArrayLike<number>,
+  axis: number[],
+): { x: number; y: number }[] {
+  const lap = deadReckon(lapSpd, lapYaw, lapTime);
+  const ref = deadReckon(refSpd, refYaw, refTime);
+  return axis.map((d) => {
+    const lx   = interpolate(lapDist, lap.x, d);
+    const ly   = interpolate(lapDist, lap.y, d);
+    const rx   = interpolate(refDist, ref.x, d);
+    const ry   = interpolate(refDist, ref.y, d);
+    const ryaw = interpolate(refDist, refYaw, d);
+    // left normal of ref heading: (−sin θ, cos θ)
+    const lateral = (lx - rx) * (-Math.sin(ryaw)) + (ly - ry) * Math.cos(ryaw);
+    return { x: Math.round(d), y: lateral };
+  });
+}
 
 export interface LapDataset {
   borderColor: string;
@@ -24,6 +68,7 @@ export interface ChartDatasets {
   spd:   LapDataset[];
   str:   LapDataset[];
   delta: LapDataset[];
+  line:  LapDataset[];
 }
 
 export interface BuiltChartData {
@@ -64,7 +109,7 @@ export function buildChartData(
     (_, i) => (maxDist / resolution) * i,
   );
 
-  const ds: ChartDatasets = { thr: [], brk: [], gear: [], rpm: [], spd: [], str: [], delta: [] };
+  const ds: ChartDatasets = { thr: [], brk: [], gear: [], rpm: [], spd: [], str: [], delta: [], line: [] };
 
   // Build per-lap data slices, sorted by colour rendering order
   const entries = Object.entries(selections) as [string, (typeof COLOR_ORDER)[number]][];
@@ -88,14 +133,15 @@ export function buildChartData(
         color,
         sessionIdx,
         lapNum: lap.lap,
-        dist:  (d['LapDist']           ?? new Float32Array()).slice(s, e),
-        time:  sessionTime.slice(s, e).map((v) => v - sessionTime[s]),
-        thr:   (d['Throttle']           ?? new Float32Array()).slice(s, e),
-        brk:   (d['Brake']              ?? new Float32Array()).slice(s, e),
-        spd:   (d['Speed']              ?? new Float32Array()).slice(s, e),
-        str:   (d['SteeringWheelAngle'] ?? new Float32Array()).slice(s, e),
-        gear:  (d['Gear']               ?? new Float32Array()).slice(s, e),
-        rpm:   (d['RPM']                ?? new Float32Array()).slice(s, e),
+        dist:     (d['LapDist']           ?? new Float32Array()).slice(s, e),
+        time:     sessionTime.slice(s, e).map((v) => v - sessionTime[s]),
+        thr:      (d['Throttle']           ?? new Float32Array()).slice(s, e),
+        brk:      (d['Brake']              ?? new Float32Array()).slice(s, e),
+        spd:      (d['Speed']              ?? new Float32Array()).slice(s, e),
+        str:      (d['SteeringWheelAngle'] ?? new Float32Array()).slice(s, e),
+        gear: (d['Gear'] ?? new Float32Array()).slice(s, e),
+        rpm:  (d['RPM']  ?? new Float32Array()).slice(s, e),
+        yaw:  (d['Yaw']  ?? new Float32Array()).slice(s, e),
       };
     })
     .filter(Boolean)
@@ -112,7 +158,7 @@ export function buildChartData(
       : `L${lap.lapNum}`;
 
     const style: Pick<LapDataset, 'borderColor' | 'borderWidth' | 'pointRadius' | 'pointHoverRadius' | 'tension' | 'label'> = {
-      borderColor: LAP_COLORS[lap.color],
+      borderColor: getLapColor(lap.color),
       borderWidth: 1,
       pointRadius: 0,
       pointHoverRadius: 4,
@@ -129,9 +175,16 @@ export function buildChartData(
     ds.str.push({ ...style, data: resample(lap.str) });
     ds.gear.push({ ...style, stepped: 'before', tension: 0, data: resample(lap.gear) });
     ds.rpm.push({ ...style, data: resample(lap.rpm) });
-
-    // Delta: time gap vs. the reference lap at each track position
+    // Lateral driving line offset and time delta — only for comparison laps
     if (ref && lap !== ref) {
+      ds.line.push({
+        ...style,
+        data: computeLateralOffset(
+          lap.spd, lap.yaw, lap.time, lap.dist,
+          ref.spd, ref.yaw, ref.time, ref.dist,
+          axis,
+        ),
+      });
       ds.delta.push({
         ...style,
         data: axis.map((x) => ({
