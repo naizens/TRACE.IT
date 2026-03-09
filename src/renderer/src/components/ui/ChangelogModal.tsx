@@ -14,8 +14,10 @@ const CHANGELOG: Entry[] = [
     date: '2026-03-09',
     changes: [
       { type: 'feat',     text: 'Light mode — switch between dark and light themes from the Settings modal; preference is persisted across sessions' },
-      { type: 'feat',     text: 'Driving Line chart added to Telemetry view — shows lateral track position over lap distance' },
       { type: 'feat',     text: 'Telemetry channel toggles — show or hide individual chart panels (Throttle, Brake, Speed, etc.) via pill buttons above the charts' },
+      { type: 'feat',     text: 'Track map rebuilt on GPS coordinates (Lat/Lon) for accurate circuit rendering — dead-reckoning kept as fallback for files without GPS data' },
+      { type: 'feat',     text: 'Driving Line Diff — GPS-based lateral deviation chart shows signed metres left/right of the reference lap\'s racing line' },
+      { type: 'refactor', text: 'Track map lines rendered as smooth bezier curves; when two laps are selected the faster lap is drawn on top as the visual reference' },
       { type: 'refactor', text: 'Title bar, tabs, and window buttons adapt to the active theme via CSS tokens' },
     ],
   },

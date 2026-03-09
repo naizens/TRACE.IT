@@ -40,10 +40,29 @@ Prepend a new entry to the top of the `CHANGELOG` array:
 ```
 
 ## 5. Commit, tag, and push
-Stage all modified files (the 3 required ones plus any other uncommitted changes), then:
+
+### Commit 1..N — granular changes (one commit per concern)
+Look at the full diff of all modified files **except** the 3 version-bump files (`package.json`, `TitleBar.tsx`, `ChangelogModal.tsx`). Group them by logical concern and create one commit per group. Examples of good groupings:
+- UI / styling changes → `style: ...`
+- New feature files/logic → `feat: ...`
+- Bug fixes → `fix: ...`
+- Performance improvements → `perf: ...`
+- Refactoring / internal cleanup → `refactor: ...`
+- Docs / comments → `docs: ...`
+
+For each group:
 ```bash
-git add <all modified files>
-git commit -m "feat: <short summary of changes> and bump version to X.Y.Z"
+git add <files belonging to this concern>
+git commit -m "<type>: <short description>"
+```
+
+If files span multiple concerns, split them by type. Only skip this step entirely if there are no non-version files to commit.
+
+### Last commit — version bump
+After all feature/fix commits, stage only the 3 version files:
+```bash
+git add package.json src/renderer/src/components/layout/TitleBar.tsx src/renderer/src/components/ui/ChangelogModal.tsx
+git commit -m "chore: bump version to X.Y.Z"
 git tag vX.Y.Z
 git push origin main
 git push origin vX.Y.Z
