@@ -15,6 +15,7 @@ const CHANGELOG: Entry[] = [
     changes: [
       { type: 'feat',     text: 'Light mode — switch between dark and light themes from the Settings modal; preference is persisted across sessions' },
       { type: 'feat',     text: 'Driving Line chart added to Telemetry view — shows lateral track position over lap distance' },
+      { type: 'feat',     text: 'Telemetry channel toggles — show or hide individual chart panels (Throttle, Brake, Speed, etc.) via pill buttons above the charts' },
       { type: 'refactor', text: 'Title bar, tabs, and window buttons adapt to the active theme via CSS tokens' },
     ],
   },
