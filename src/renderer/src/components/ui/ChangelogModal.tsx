@@ -10,6 +10,15 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.17',
+    date: '2026-03-09',
+    changes: [
+      { type: 'feat',     text: 'Light mode — switch between dark and light themes from the Settings modal; preference is persisted across sessions' },
+      { type: 'feat',     text: 'Driving Line chart added to Telemetry view — shows lateral track position over lap distance' },
+      { type: 'refactor', text: 'Title bar, tabs, and window buttons adapt to the active theme via CSS tokens' },
+    ],
+  },
+  {
     version: '0.0.16',
     date: '2026-03-05',
     changes: [
