@@ -19,7 +19,7 @@ export function SessionList() {
           >
             {/* Colour indicator — primary session is green */}
             <span
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+              className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ background: i === 0 ? '#00ff88' : '#52525b' }}
             />
             <span

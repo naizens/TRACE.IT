@@ -79,7 +79,7 @@ export function SetupView() {
                     {names.map((n) => (
                       <th
                         key={n}
-                        className="py-1.5 px-2 text-right text-[9px] text-muted font-semibold max-w-[100px] truncate"
+                        className="py-1.5 px-2 text-right text-[9px] text-muted font-semibold max-w-25 truncate"
                         title={n}
                       >
                         {n}
