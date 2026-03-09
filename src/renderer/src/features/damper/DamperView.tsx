@@ -45,7 +45,7 @@ interface ZoneStat {
 }
 
 function buildHistogram(
-  rawMs: Float32Array,
+  rawMs: Float32Array | Float64Array,
   range: RangeOption,
   binLabels: string[],
   lsThreshold: number,

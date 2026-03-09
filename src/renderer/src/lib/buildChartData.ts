@@ -3,49 +3,8 @@ import { getLapColor, COLOR_ORDER } from './constants';
 import { interpolate } from './interpolate';
 import { arrayMax } from './formatters';
 
-/**
- * Dead-reckoning XY for a lap (same formula as the TrackMap canvas).
- * Returns Float32Arrays in metres from the lap start position.
- */
-function deadReckon(
-  spd:  ArrayLike<number>,
-  yaw:  ArrayLike<number>,
-  time: ArrayLike<number>,
-): { x: Float32Array; y: Float32Array } {
-  const n = spd.length;
-  const x = new Float32Array(n);
-  const y = new Float32Array(n);
-  for (let i = 1; i < n; i++) {
-    const dt = time[i] - time[i - 1];
-    x[i] = x[i - 1] + spd[i] * Math.cos(yaw[i]) * dt;
-    y[i] = y[i - 1] + spd[i] * Math.sin(yaw[i]) * dt;
-  }
-  return { x, y };
-}
-
-/**
- * Lateral offset of a comparison lap vs the reference lap, in metres.
- * At each track distance we project the XY difference onto the track
- * normal (⊥ to the reference heading): left = +, right = −.
- */
-function computeLateralOffset(
-  lapSpd:  ArrayLike<number>, lapYaw: ArrayLike<number>, lapTime: ArrayLike<number>, lapDist: ArrayLike<number>,
-  refSpd:  ArrayLike<number>, refYaw: ArrayLike<number>, refTime: ArrayLike<number>, refDist: ArrayLike<number>,
-  axis: number[],
-): { x: number; y: number }[] {
-  const lap = deadReckon(lapSpd, lapYaw, lapTime);
-  const ref = deadReckon(refSpd, refYaw, refTime);
-  return axis.map((d) => {
-    const lx   = interpolate(lapDist, lap.x, d);
-    const ly   = interpolate(lapDist, lap.y, d);
-    const rx   = interpolate(refDist, ref.x, d);
-    const ry   = interpolate(refDist, ref.y, d);
-    const ryaw = interpolate(refDist, refYaw, d);
-    // left normal of ref heading: (−sin θ, cos θ)
-    const lateral = (lx - rx) * (-Math.sin(ryaw)) + (ly - ry) * Math.cos(ryaw);
-    return { x: Math.round(d), y: lateral };
-  });
-}
+const DEG_TO_RAD = Math.PI / 180;
+const EARTH_R    = 6_371_000; // metres
 
 export interface LapDataset {
   borderColor: string;
@@ -61,14 +20,14 @@ export interface LapDataset {
 }
 
 export interface ChartDatasets {
-  thr:   LapDataset[];
-  brk:   LapDataset[];
-  gear:  LapDataset[];
-  rpm:   LapDataset[];
-  spd:   LapDataset[];
-  str:   LapDataset[];
-  delta: LapDataset[];
-  line:  LapDataset[];
+  thr:    LapDataset[];
+  brk:    LapDataset[];
+  gear:   LapDataset[];
+  rpm:    LapDataset[];
+  spd:    LapDataset[];
+  str:    LapDataset[];
+  delta:  LapDataset[];
+  latDev: LapDataset[];
 }
 
 export interface BuiltChartData {
@@ -77,7 +36,7 @@ export interface BuiltChartData {
 }
 
 /**
- * Builds Chart.js dataset arrays for all 6 channels by:
+ * Builds Chart.js dataset arrays for all channels by:
  * 1. Slicing raw data for each selected lap (across any loaded session)
  * 2. Resampling to a fixed number of points via linear interpolation
  * 3. Computing the time delta relative to the first ("ref") lap
@@ -90,12 +49,10 @@ export function buildChartData(
 ): BuiltChartData {
   const multiSession = sessions.length > 1;
 
-  // Collect unique session indices referenced by the current selections
   const usedSessionIndices = new Set(
     Object.keys(selections).map((k) => parseInt(k.split(':')[0])),
   );
 
-  // x-axis upper bound: max LapDist across all referenced sessions
   let maxDist = 0;
   for (const si of usedSessionIndices) {
     const lapDistArr = sessions[si]?.data['LapDist'] ?? new Float32Array();
@@ -109,15 +66,14 @@ export function buildChartData(
     (_, i) => (maxDist / resolution) * i,
   );
 
-  const ds: ChartDatasets = { thr: [], brk: [], gear: [], rpm: [], spd: [], str: [], delta: [], line: [] };
+  const ds: ChartDatasets = { thr: [], brk: [], gear: [], rpm: [], spd: [], str: [], delta: [], latDev: [] };
 
-  // Build per-lap data slices, sorted by colour rendering order
   const entries = Object.entries(selections) as [string, (typeof COLOR_ORDER)[number]][];
   const sorted = entries
     .map(([key, color]) => {
-      const colon     = key.indexOf(':');
+      const colon      = key.indexOf(':');
       const sessionIdx = parseInt(key.substring(0, colon));
-      const lapIdx    = parseInt(key.substring(colon + 1));
+      const lapIdx     = parseInt(key.substring(colon + 1));
 
       const session = sessions[sessionIdx];
       if (!session) return null;
@@ -133,15 +89,16 @@ export function buildChartData(
         color,
         sessionIdx,
         lapNum: lap.lap,
-        dist:     (d['LapDist']           ?? new Float32Array()).slice(s, e),
-        time:     sessionTime.slice(s, e).map((v) => v - sessionTime[s]),
-        thr:      (d['Throttle']           ?? new Float32Array()).slice(s, e),
-        brk:      (d['Brake']              ?? new Float32Array()).slice(s, e),
-        spd:      (d['Speed']              ?? new Float32Array()).slice(s, e),
-        str:      (d['SteeringWheelAngle'] ?? new Float32Array()).slice(s, e),
+        dist: (d['LapDist']           ?? new Float32Array()).slice(s, e),
+        time: sessionTime.slice(s, e).map((v) => v - sessionTime[s]),
+        thr:  (d['Throttle']           ?? new Float32Array()).slice(s, e),
+        brk:  (d['Brake']              ?? new Float32Array()).slice(s, e),
+        spd:  (d['Speed']              ?? new Float32Array()).slice(s, e),
+        str:  (d['SteeringWheelAngle'] ?? new Float32Array()).slice(s, e),
         gear: (d['Gear'] ?? new Float32Array()).slice(s, e),
         rpm:  (d['RPM']  ?? new Float32Array()).slice(s, e),
-        yaw:  (d['Yaw']  ?? new Float32Array()).slice(s, e),
+        lat:  (d['Lat']  ?? new Float64Array()).slice(s, e),
+        lon:  (d['Lon']  ?? new Float64Array()).slice(s, e),
       };
     })
     .filter(Boolean)
@@ -152,7 +109,6 @@ export function buildChartData(
   for (const lap of sorted) {
     if (!lap) continue;
 
-    // Include session number in label when multiple sessions are loaded
     const label = multiSession
       ? `S${lap.sessionIdx + 1}·L${lap.lapNum}`
       : `L${lap.lapNum}`;
@@ -175,16 +131,23 @@ export function buildChartData(
     ds.str.push({ ...style, data: resample(lap.str) });
     ds.gear.push({ ...style, stepped: 'before', tension: 0, data: resample(lap.gear) });
     ds.rpm.push({ ...style, data: resample(lap.rpm) });
-    // Lateral driving line offset and time delta — only for comparison laps
+
     if (ref && lap !== ref) {
-      ds.line.push({
-        ...style,
-        data: computeLateralOffset(
-          lap.spd, lap.yaw, lap.time, lap.dist,
-          ref.spd, ref.yaw, ref.time, ref.dist,
-          axis,
-        ),
-      });
+      // Reference lap zero-line for delta (added once)
+      if (ds.delta.length === 0) {
+        const refLabel = multiSession ? `S${ref.sessionIdx + 1}·L${ref.lapNum}` : `L${ref.lapNum}`;
+        ds.delta.push({
+          borderColor: getLapColor(ref.color),
+          borderWidth: 1,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0,
+          label: refLabel,
+          data: axis.map((x) => ({ x: Math.round(x), y: 0 })),
+        });
+      }
+
       ds.delta.push({
         ...style,
         data: axis.map((x) => ({
@@ -192,6 +155,58 @@ export function buildChartData(
           y: interpolate(lap.dist, lap.time, x) - interpolate(ref.dist, ref.time, x),
         })),
       });
+
+      // Lateral deviation: signed perpendicular distance in metres between
+      // this lap's GPS position and the ref lap's GPS position at each LapDist.
+      // Positive = comp lap is left of ref lap's heading.
+      // Reference lap zero-line (added once, before the first comparison dataset)
+      if (ds.latDev.length === 0) {
+        const refLabel = multiSession ? `S${ref.sessionIdx + 1}·L${ref.lapNum}` : `L${ref.lapNum}`;
+        ds.latDev.push({
+          borderColor: getLapColor(ref.color),
+          borderWidth: 1,
+          borderDash: [4, 3],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0,
+          label: refLabel,
+          data: axis.map((x) => ({ x: Math.round(x), y: 0 })),
+        });
+      }
+
+      if (ref.lat.length > 1 && lap.lat.length > 1) {
+        const lat0Rad = ref.lat[0] * DEG_TO_RAD;
+        const lon0    = ref.lon[0];
+        const cosLat0 = Math.cos(lat0Rad);
+        const toX = (lo: number) => (lo - lon0)              * cosLat0 * EARTH_R * DEG_TO_RAD;
+        const toY = (la: number) => (la * DEG_TO_RAD - lat0Rad)        * EARTH_R;
+
+        // Pre-convert ref and comp GPS to metres
+        const rn = ref.lat.length;
+        const refXM = new Float64Array(rn), refYM = new Float64Array(rn);
+        for (let i = 0; i < rn; i++) { refXM[i] = toX(ref.lon[i]); refYM[i] = toY(ref.lat[i]); }
+
+        const cn = lap.lat.length;
+        const cmpXM = new Float64Array(cn), cmpYM = new Float64Array(cn);
+        for (let i = 0; i < cn; i++) { cmpXM[i] = toX(lap.lon[i]); cmpYM[i] = toY(lap.lat[i]); }
+
+        const EPS = 5; // metres for finite-difference tangent
+        ds.latDev.push({
+          ...style,
+          data: axis.map((x) => {
+            const rx  = interpolate(ref.dist, refXM, x);
+            const ry  = interpolate(ref.dist, refYM, x);
+            const rx2 = interpolate(ref.dist, refXM, Math.min(x + EPS, maxDist));
+            const ry2 = interpolate(ref.dist, refYM, Math.min(x + EPS, maxDist));
+            const tx  = rx2 - rx, ty = ry2 - ry;
+            const tlen = Math.sqrt(tx * tx + ty * ty) || 1;
+            const cx  = interpolate(lap.dist, cmpXM, x);
+            const cy  = interpolate(lap.dist, cmpYM, x);
+            // cross(tangent, delta): positive = comp is to the left of ref
+            return { x: Math.round(x), y: Math.round((tx * (cy - ry) - ty * (cx - rx)) / tlen * 100) / 100 };
+          }),
+        });
+      }
     }
   }
 

@@ -40,7 +40,7 @@ export interface ParsedSession {
     humidity_pct: number | null;
   };
   laps: LapInfo[];
-  data: Record<string, Float32Array>;
+  data: Record<string, Float32Array | Float64Array>;
   setup: Record<string, unknown>;
   _filename: string;
 }
@@ -72,8 +72,9 @@ const NEEDED_VARS = new Set([
   'LRtempL', 'LRtempM', 'LRtempR',
   'RRtempL', 'RRtempM', 'RRtempR',
   'LFrideHeight', 'RFrideHeight', 'LRrideHeight', 'RRrideHeight',
-  // Track-map dead reckoning
-  'Yaw',
+  // Track-map GPS position + world-frame velocity transform
+  'Lat', 'Lon',
+  'Yaw', 'YawNorth', 'VelocityX', 'VelocityY',
   // Shock / damper velocities (m/s) — used for damper histograms
   'LFshockVel', 'RFshockVel', 'LRshockVel', 'RRshockVel',
   // Shock deflections (m) — used for shock deflection view
@@ -128,19 +129,23 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
 
   // ── Variable descriptor map ───────────────────────────────────────────────
   const varMap: Record<string, { offset: number; type: number }> = {};
-  const allVarNames: string[] = [];
+  const allVars: Array<{ name: string; type: number; offset: number; count: number }> = [];
   for (let i = 0; i < numVars; i++) {
     const pos    = varHeaderOffset + i * 144;
     const type   = buffer.readInt32LE(pos);
     const offset = buffer.readInt32LE(pos + 4);
+    const count  = buffer.readInt32LE(pos + 8);
     const nameEnd = buffer.indexOf(0, pos + 16);
     const name  = buffer.slice(pos + 16, Math.min(nameEnd, pos + 48)).toString('ascii');
-    allVarNames.push(name);
+    allVars.push({ name, type, offset, count });
     if (NEEDED_VARS.has(name)) {
       varMap[name] = { offset, type };
     }
   }
+
+
   if (process.env.IBT_DEBUG_CHANNELS === '1') {
+    const allVarNames = allVars.map(v => v.name);
     const outPath = path.join(process.cwd(), 'docs', 'ibt-channels.md');
     const existing = fs.existsSync(outPath)
       ? new Set([...fs.readFileSync(outPath, 'utf8').matchAll(/`(\w+)`/g)].map(m => m[1]))
@@ -156,8 +161,14 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
   // ── Sample extraction ─────────────────────────────────────────────────────
   // Pre-allocate Float32Array per channel — ~6× less memory than number[]
   // (avoids V8 boxing; typed arrays are released outside the managed heap).
-  const results: Record<string, Float32Array> = {};
-  for (const name of Object.keys(varMap)) results[name] = new Float32Array(numSamples);
+  // Exception: GPS + heading channels use Float64Array to preserve double precision.
+  const FLOAT64_VARS = new Set(['Lat', 'Lon', 'YawNorth']);
+  const results: Record<string, Float32Array | Float64Array> = {};
+  for (const name of Object.keys(varMap)) {
+    results[name] = FLOAT64_VARS.has(name)
+      ? new Float64Array(numSamples)
+      : new Float32Array(numSamples);
+  }
 
   for (let s = 0; s < numSamples; s++) {
     const base = bufOffset + s * bufLen;
@@ -167,7 +178,8 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
       let val = reader(buffer, base + offset);
       if (name === 'SteeringWheelAngle') {
         val = Math.round(val * 57.2958 * 100) / 100; // rad → deg
-      } else if (!Number.isInteger(val)) {
+      } else if (name !== 'Lat' && name !== 'Lon' && name !== 'YawNorth' && !Number.isInteger(val)) {
+        // Skip rounding for high-precision channels (GPS coords, heading)
         val = Math.round(val * 10000) / 10000;
       }
       results[name][s] = val;

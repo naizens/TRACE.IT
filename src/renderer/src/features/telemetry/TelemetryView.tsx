@@ -12,7 +12,7 @@ import type { TrackMapHandle } from '../trackmap';
 import type { Chart } from 'chart.js';
 
 interface Props {
-  trackMapRef: RefObject<TrackMapHandle>;
+  trackMapRef: RefObject<TrackMapHandle | null>;
 }
 
 const INITIAL_FLEX_MAP: Record<string, number> = Object.fromEntries(CHART_CONFIGS.map((c) => [c.id, c.flex]));

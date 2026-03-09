@@ -359,7 +359,7 @@ const INITIAL_FLEX: Record<string, number> = { 'shock-front': 1, 'shock-rear': 1
 // ── ShocksView ────────────────────────────────────────────────────────────────
 
 interface Props {
-  trackMapRef: RefObject<TrackMapHandle>;
+  trackMapRef: RefObject<TrackMapHandle | null>;
 }
 
 export function ShocksView({ trackMapRef }: Props) {

@@ -258,7 +258,7 @@ function ShockVelPanel({
 // ── ShockVelocityView ─────────────────────────────────────────────────────────
 
 interface Props {
-  trackMapRef: RefObject<TrackMapHandle>;
+  trackMapRef: RefObject<TrackMapHandle | null>;
 }
 
 export function ShockVelocityView({ trackMapRef }: Props) {

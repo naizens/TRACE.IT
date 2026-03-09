@@ -46,8 +46,9 @@ export function createChartOptions({
           label(item) {
             const val = item.raw as { y: number };
             if (id === 'thr' || id === 'brk') return `${Math.round(val.y)} %`;
-            if (id === 'delta') return `${val.y >= 0 ? '+' : ''}${val.y.toFixed(3)} s`;
-            if (id === 'gear')  return `${val.y.toFixed(0)}`;
+            if (id === 'delta')  return `${val.y >= 0 ? '+' : ''}${val.y.toFixed(3)} s`;
+            if (id === 'latDev') return val.y === 0 ? '0.00 m' : `${Math.abs(val.y).toFixed(2)} m ${val.y > 0 ? 'L' : 'R'}`;
+            if (id === 'gear')   return `${val.y.toFixed(0)}`;
             return val.y.toFixed(1);
           },
           labelTextColor: (item) => item.dataset.borderColor as string,
@@ -79,16 +80,24 @@ export function createChartOptions({
         ticks: {
           color: '#52525b',
           font:  { size: 8 },
-          maxTicksLimit: 3,
+          maxTicksLimit: 5,
           padding: 2,
+          callback: (value) => {
+            if (id === 'latDev') {
+              const v = value as number;
+              if (v === 0) return '0';
+              return `${Math.abs(v)}${v > 0 ? 'L' : 'R'}`;
+            }
+            return value;
+          },
         },
         grid: {
           color: (ctx) =>
-            id === 'delta' && ctx.tick.value === 0
+            (id === 'delta' || id === 'latDev') && ctx.tick.value === 0
               ? 'rgba(255,255,255,0.12)'
               : 'rgba(255,255,255,0.04)',
           lineWidth: (ctx) =>
-            id === 'delta' && ctx.tick.value === 0 ? 1.5 : 1,
+            (id === 'delta' || id === 'latDev') && ctx.tick.value === 0 ? 1.5 : 1,
         },
         border: { display: false },
       },

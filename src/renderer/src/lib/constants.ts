@@ -42,7 +42,7 @@ export const CHART_CONFIGS: ChartConfig[] = [
   { id: 'rpm',   label: 'RPM',             dataKey: 'RPM',                multiplier: 1,   fixedScale: false, flex: 1.5, stepped: false },
   { id: 'spd',   label: 'Speed  km/h',     dataKey: 'Speed',              multiplier: 3.6, fixedScale: false, flex: 2.8, stepped: false },
   { id: 'str',   label: 'Steering  deg',   dataKey: 'SteeringWheelAngle', multiplier: 1,   fixedScale: false, flex: 2.8, stepped: false },
-  { id: 'delta', label: 'Time Delta  s',   dataKey: null,                 multiplier: 1,   fixedScale: false, flex: 1.2, stepped: false },
-  { id: 'line',  label: 'Driving Line  m', dataKey: null,                 multiplier: 1,       fixedScale: false, flex: 2.8, stepped: false },
+  { id: 'delta',  label: 'Time Delta  s',   dataKey: null, multiplier: 1, fixedScale: false, flex: 1.2, stepped: false },
+  { id: 'latDev', label: 'Driving Line Diff', dataKey: null, multiplier: 1, fixedScale: false, flex: 1.5, stepped: false },
 ];
 

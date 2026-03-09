@@ -110,7 +110,7 @@ function createTireTempOptions(args: {
 // ── TireTempView ──────────────────────────────────────────────────────────────
 
 interface Props {
-  trackMapRef: RefObject<TrackMapHandle>;
+  trackMapRef: RefObject<TrackMapHandle | null>;
 }
 
 export function TireTempView({ trackMapRef }: Props) {

@@ -19,8 +19,9 @@ export interface SessionMeta {
 export interface ParsedSession {
   meta: SessionMeta;
   laps: LapInfo[];
-  /** Telemetry channel arrays, keyed by iRacing variable name */
-  data: Record<string, Float32Array>;
+  /** Telemetry channel arrays, keyed by iRacing variable name.
+   *  GPS/heading channels (Lat, Lon, YawNorth) use Float64Array; all others Float32Array. */
+  data: Record<string, Float32Array | Float64Array>;
   /** CarSetup YAML section as a nested object */
   setup: Record<string, unknown>;
   /** Filename without extension, used as display label */

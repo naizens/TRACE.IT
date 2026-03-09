@@ -9,7 +9,7 @@ import type { TrackMapHandle, TelemetryInputs } from '../features/trackmap';
  * top two priority-selected laps and forwards both to the TelemetryBar.
  * Priority order: ref > blue > pink > lime.
  */
-export function useTrackMapUpdate(trackMapRef: RefObject<TrackMapHandle>) {
+export function useTrackMapUpdate(trackMapRef: RefObject<TrackMapHandle | null>) {
   return useCallback(
     (lapDist: number) => {
       const { sessions, selections } = useStore.getState();

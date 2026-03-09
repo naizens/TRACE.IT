@@ -289,7 +289,7 @@ const INITIAL_FLEX: Record<string, number> = { splitter: 1, front: 1, rear: 1 };
 // ── RideHeightView ────────────────────────────────────────────────────────────
 
 interface Props {
-  trackMapRef: RefObject<TrackMapHandle>;
+  trackMapRef: RefObject<TrackMapHandle | null>;
 }
 
 export function RideHeightView({ trackMapRef }: Props) {

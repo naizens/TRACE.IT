@@ -14,7 +14,7 @@ const MIN_MAP_H  = 80;
 const MAX_MAP_H  = 480;
 
 interface Props {
-  trackMapRef: RefObject<TrackMapHandle>;
+  trackMapRef: RefObject<TrackMapHandle | null>;
 }
 
 export function Sidebar({ trackMapRef }: Props) {
@@ -34,7 +34,8 @@ export function Sidebar({ trackMapRef }: Props) {
     return times.some((t) => t >= median * 0.5);
   }, [session]);
 
-  // One entry per selected lap (max 2, in COLOR_ORDER priority).
+  // One entry per selected lap (max 2, sorted slower-first so the faster lap
+  // is drawn last (on top) as the visual reference line.
   const trackLaps = useMemo<LapEntry[]>(() => {
     const laps: LapEntry[] = [];
     for (const color of COLOR_ORDER) {
@@ -56,6 +57,12 @@ export function Sidebar({ trackMapRef }: Props) {
         }
       }
     }
+    // Slower lap first → faster lap drawn last (on top as reference line)
+    laps.sort((a, b) => {
+      const timeA = a.session.laps[a.lapIdx].lap_time_s;
+      const timeB = b.session.laps[b.lapIdx].lap_time_s;
+      return timeB - timeA;
+    });
     return laps;
   }, [selections, sessions]);
 
