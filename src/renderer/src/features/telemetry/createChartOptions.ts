@@ -41,11 +41,20 @@ export function createChartOptions({
         displayColors: false,
         titleFont: { size: 0 },
         bodyFont: { family: 'monospace', size: 11, weight: 'bold' },
+        filter: (item) => !item.dataset.label?.endsWith(' ABS'),
         callbacks: {
           title: () => '',
           label(item) {
             const val = item.raw as { y: number };
-            if (id === 'thr' || id === 'brk') return `${Math.round(val.y)} %`;
+            if (id === 'thr') return `${Math.round(val.y)} %`;
+            if (id === 'brk') {
+              const absDs = item.chart.data.datasets[item.datasetIndex + 1];
+              const absVal = absDs?.label?.endsWith(' ABS')
+                ? (absDs.data[item.dataIndex] as { y: number } | undefined)?.y
+                : undefined;
+              const brk = `${Math.round(val.y)} %`;
+              return absVal != null ? `${brk}  ${Math.round(absVal)} %` : brk;
+            }
             if (id === 'delta')  return `${val.y >= 0 ? '+' : ''}${val.y.toFixed(3)} s`;
             if (id === 'latDev') return val.y === 0 ? '0.00 m' : `${Math.abs(val.y).toFixed(2)} m ${val.y > 0 ? 'L' : 'R'}`;
             if (id === 'gear')   return `${val.y.toFixed(0)}`;

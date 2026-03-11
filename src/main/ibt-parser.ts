@@ -62,7 +62,7 @@ const DTYPE: Record<number, Reader> = {
 
 const NEEDED_VARS = new Set([
   // Core telemetry
-  'SessionTime', 'Lap', 'LapDist', 'Throttle', 'Brake',
+  'SessionTime', 'Lap', 'LapDist', 'Throttle', 'Brake', 'BrakeABScutPct',
   'SteeringWheelAngle', 'Speed', 'LapLastLapTime', 'Gear', 'RPM',
   // Live setup data
   'FuelLevel', 'DcBrakeBias',

@@ -1,10 +1,11 @@
 import type { ParsedSession, LapSelections } from '../types/session';
 import { getLapColor, COLOR_ORDER } from './constants';
 import { interpolate } from './interpolate';
-import { arrayMax } from './formatters';
+import { arrayMax, darken } from './formatters';
 
 const DEG_TO_RAD = Math.PI / 180;
 const EARTH_R    = 6_371_000; // metres
+
 
 export interface LapDataset {
   borderColor: string;
@@ -16,6 +17,7 @@ export interface LapDataset {
   stepped?: boolean | 'before' | 'middle' | 'after';
   borderDash?: number[];
   normalized?: boolean;
+  fill?: boolean;
   data: { x: number; y: number }[];
 }
 
@@ -92,7 +94,8 @@ export function buildChartData(
         dist: (d['LapDist']           ?? new Float32Array()).slice(s, e),
         time: sessionTime.slice(s, e).map((v) => v - sessionTime[s]),
         thr:  (d['Throttle']           ?? new Float32Array()).slice(s, e),
-        brk:  (d['Brake']              ?? new Float32Array()).slice(s, e),
+        brk:    (d['Brake']              ?? new Float32Array()).slice(s, e),
+        abscut: (d['BrakeABScutPct']    ?? new Float32Array()).slice(s, e),
         spd:  (d['Speed']              ?? new Float32Array()).slice(s, e),
         str:  (d['SteeringWheelAngle'] ?? new Float32Array()).slice(s, e),
         gear: (d['Gear'] ?? new Float32Array()).slice(s, e),
@@ -126,7 +129,17 @@ export function buildChartData(
       axis.map((x) => ({ x: Math.round(x), y: interpolate(lap.dist, arr, x) * mult }));
 
     ds.thr.push({ ...style, data: resample(lap.thr, 100) });
-    ds.brk.push({ ...style, data: resample(lap.brk, 100) });
+
+    // Brake trace (light) + ABS cut as separate darker line — mirrors reference app
+    ds.brk.push({ ...style, fill: false, data: resample(lap.brk, 100) });
+    const lapColor = getLapColor(lap.color);
+    ds.brk.push({
+      ...style,
+      borderColor: darken(lapColor, 0.45),
+      label: `${label} ABS`,
+      fill: false,
+      data: resample(lap.abscut, 100),
+    });
     ds.spd.push({ ...style, data: resample(lap.spd, 3.6) });
     ds.str.push({ ...style, data: resample(lap.str) });
     ds.gear.push({ ...style, stepped: 'before', tension: 0, data: resample(lap.gear) });
