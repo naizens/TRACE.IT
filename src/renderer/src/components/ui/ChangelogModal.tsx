@@ -10,6 +10,13 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.0.18',
+    date: '2026-03-11',
+    changes: [
+      { type: 'feat', text: 'Brake chart now shows ABS cut percentage as a separate darker line per lap — tooltip displays both brake pressure and ABS cut values simultaneously' },
+    ],
+  },
+  {
     version: '0.0.17',
     date: '2026-03-09',
     changes: [
