@@ -10,14 +10,14 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
-    version: '0.0.18',
+    version: '0.11.0',
     date: '2026-03-11',
     changes: [
       { type: 'feat', text: 'Brake chart now shows ABS cut percentage as a separate darker line per lap — tooltip displays both brake pressure and ABS cut values simultaneously' },
     ],
   },
   {
-    version: '0.0.17',
+    version: '0.10.0',
     date: '2026-03-09',
     changes: [
       { type: 'feat',     text: 'Light mode — switch between dark and light themes from the Settings modal; preference is persisted across sessions' },
@@ -29,7 +29,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.16',
+    version: '0.9.0',
     date: '2026-03-05',
     changes: [
       { type: 'feat',     text: 'Damper histograms now show HS/LS zone percentages (HS RBD%, LS RBD%, LS COMP%, HS COMP%) per selected lap above each corner chart' },
@@ -39,14 +39,14 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.15',
+    version: '0.8.0',
     date: '2026-03-03',
     changes: [
       { type: 'feat', text: 'Window maximized state is now remembered across sessions — app reopens maximized if it was closed that way' },
     ],
   },
   {
-    version: '0.0.14',
+    version: '0.7.1',
     date: '2026-03-03',
     changes: [
       { type: 'fix', text: 'Changelog and Settings modals can no longer be open simultaneously — opening one now closes the other' },
@@ -54,7 +54,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.13',
+    version: '0.7.0',
     date: '2026-03-03',
     changes: [
       { type: 'feat',     text: 'Settings modal — hardware acceleration toggle accessible from the gear icon in the title bar' },
@@ -64,7 +64,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.12',
+    version: '0.6.0',
     date: '2026-03-03',
     changes: [
       { type: 'feat',     text: 'Shock Velocity view — per-corner shock velocity charts (m/s) with track map sync' },
@@ -74,7 +74,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.11',
+    version: '0.5.1',
     date: '2026-03-01',
     changes: [
       { type: 'fix',      text: 'Sidebar and tab navigation are now hidden on the empty state — only the drop zone is shown until files are loaded' },
@@ -83,7 +83,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.10',
+    version: '0.5.0',
     date: '2026-03-01',
     changes: [
       { type: 'feat',     text: 'Track map now renders all selected laps as overlaid colored lines with per-lap position markers' },
@@ -96,28 +96,28 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.9',
+    version: '0.4.2',
     date: '2026-02-28',
     changes: [
       { type: 'refactor', text: 'Update banner restyled — now appears below the title bar with softer colours' },
     ],
   },
   {
-    version: '0.0.8',
+    version: '0.4.1',
     date: '2026-02-28',
     changes: [
       { type: 'refactor', text: 'Tire Temp, Ride Height, and Shocks charts now use solid darker lines instead of dashed patterns for multi-position comparison' },
     ],
   },
   {
-    version: '0.0.7',
+    version: '0.4.0',
     date: '2026-02-28',
     changes: [
       { type: 'feat', text: 'Changelog modal — view release history from the version badge in the title bar' },
     ],
   },
   {
-    version: '0.0.6',
+    version: '0.3.0',
     date: '2026-02-28',
     changes: [
       { type: 'feat',    text: 'Auto-updater via GitHub Releases — app notifies and restarts when a new version is downloaded' },
@@ -127,7 +127,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.5',
+    version: '0.2.0',
     date: '2026-02-22',
     changes: [
       { type: 'feat',     text: 'Shocks view with shock velocity charts per corner' },
@@ -138,7 +138,7 @@ const CHANGELOG: Entry[] = [
     ],
   },
   {
-    version: '0.0.4',
+    version: '0.1.0',
     date: '2026-02-15',
     changes: [
       { type: 'feat', text: 'Ride Height view' },
