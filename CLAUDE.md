@@ -201,6 +201,6 @@ Full list in `docs/ibt-channels.md` — regenerate with `IBT_DEBUG_CHANNELS=1`.
 - `buffer.slice()` is deprecated — prefer `buffer.subarray()` in new code.
 - The sidebar (`Sidebar.tsx`) has `overflow-hidden` — tooltips that escape it must use `position: fixed`.
 - `js-yaml` lacks type declarations — existing `@ts-ignore` / cast pattern is intentional.
-- **TitleBar version badge is hardcoded** — `TitleBar.tsx` line with `v0.0.X` must be updated manually (or via `/release`); it does NOT read from `package.json`.
+- **TitleBar version badge is hardcoded** — `TitleBar.tsx` line with the version string (e.g. `v0.1.0`) must be updated manually (or via `/release`); it does NOT read from `package.json`.
 - **`/release X.Y.Z`** — use this skill to automate all 3-file version bumps + commit + tag + push.
 - **Circular imports** — if two co-located components share a type, own it in the component that *accepts* it as input; the other imports and re-exports it.
