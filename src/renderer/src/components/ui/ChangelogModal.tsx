@@ -10,6 +10,14 @@ interface Entry {
 
 const CHANGELOG: Entry[] = [
   {
+    version: '0.11.1',
+    date: '2026-03-11',
+    changes: [
+      { type: 'fix',      text: 'Lap times now use sub-sample interpolation at the finish-line crossing (LapDistPct=0) — eliminates up to ~8 ms timing error at 60 Hz' },
+      { type: 'refactor', text: 'Lap segmentation rewritten to use LapDistPct zero-crossing detection, matching the reference algorithm for consistent outlap/inlap handling' },
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-03-11',
     changes: [
