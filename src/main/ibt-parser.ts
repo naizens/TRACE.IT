@@ -62,7 +62,7 @@ const DTYPE: Record<number, Reader> = {
 
 const NEEDED_VARS = new Set([
   // Core telemetry
-  'SessionTime', 'Lap', 'LapDist', 'Throttle', 'Brake', 'BrakeABScutPct',
+  'SessionTime', 'Lap', 'LapDist', 'LapDistPct', 'Throttle', 'Brake', 'BrakeABScutPct',
   'SteeringWheelAngle', 'Speed', 'LapLastLapTime', 'Gear', 'RPM',
   // Live setup data
   'FuelLevel', 'DcBrakeBias',
@@ -103,7 +103,7 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
   let carSetup: Record<string, unknown> = {};
   let humidityPct: number | null = null;
   try {
-    const raw = buffer.slice(sessionInfoOffset, sessionInfoOffset + sessionInfoLen);
+    const raw = buffer.subarray(sessionInfoOffset, sessionInfoOffset + sessionInfoLen);
     // Stop at first null byte; decode as latin-1 to tolerate non-UTF8 bytes
     let str = raw.toString('latin1').split('\x00')[0];
     // Strip any garbage prefix bytes before the first printable letter
@@ -136,7 +136,7 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
     const offset = buffer.readInt32LE(pos + 4);
     const count  = buffer.readInt32LE(pos + 8);
     const nameEnd = buffer.indexOf(0, pos + 16);
-    const name  = buffer.slice(pos + 16, Math.min(nameEnd, pos + 48)).toString('ascii');
+    const name  = buffer.subarray(pos + 16, Math.min(nameEnd, pos + 48)).toString('ascii');
     allVars.push({ name, type, offset, count });
     if (NEEDED_VARS.has(name)) {
       varMap[name] = { offset, type };
@@ -161,8 +161,11 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
   // ── Sample extraction ─────────────────────────────────────────────────────
   // Pre-allocate Float32Array per channel — ~6× less memory than number[]
   // (avoids V8 boxing; typed arrays are released outside the managed heap).
-  // Exception: GPS + heading channels use Float64Array to preserve double precision.
-  const FLOAT64_VARS = new Set(['Lat', 'Lon', 'YawNorth']);
+  // Exception: double-precision channels stay as Float64Array — SessionTime is
+  // used for sub-tick lap-time interpolation and must not be rounded or truncated.
+  // LapDistPct must NOT be rounded — values like 0.99982 rounded to 1.0000 would
+  // skip the interpolation and produce lap-time errors of up to ~8 ms at 60 Hz.
+  const FLOAT64_VARS = new Set(['Lat', 'Lon', 'YawNorth', 'SessionTime', 'LapDistPct']);
   const results: Record<string, Float32Array | Float64Array> = {};
   for (const name of Object.keys(varMap)) {
     results[name] = FLOAT64_VARS.has(name)
@@ -178,55 +181,88 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
       let val = reader(buffer, base + offset);
       if (name === 'SteeringWheelAngle') {
         val = Math.round(val * 57.2958 * 100) / 100; // rad → deg
-      } else if (name !== 'Lat' && name !== 'Lon' && name !== 'YawNorth' && !Number.isInteger(val)) {
-        // Skip rounding for high-precision channels (GPS coords, heading)
+      } else if (!FLOAT64_VARS.has(name) && !Number.isInteger(val)) {
+        // Skip rounding for double-precision channels (GPS coords, heading, time)
         val = Math.round(val * 10000) / 10000;
       }
       results[name][s] = val;
     }
   }
 
-  // ── Lap segmentation ─────────────────────────────────────────────────────
+  // ── Lap segmentation — exact port of reference app getLapsMap() ───────────
+  // Phase 1: detect crossings (LapDistPct >0.9 → <0.1, Lap increments).
+  // Phase 2: interpolate the exact SessionTime when LapDistPct=0 at each boundary.
   const laps: LapInfo[] = [];
-  const ln  = results['Lap'];
-  const llt = results['LapLastLapTime'];
-  let startIdx   = 0;
-  let currentLap = ln[0];
+  const lapCh   = results['Lap'];
+  const distPct = results['LapDistPct'];
+  const stTime  = results['SessionTime'];
 
-  for (let i = 1; i < ln.length; i++) {
-    if (ln[i] !== currentLap) {
-      const endIdx = i - 1;
+  // d3 interpolateNumber equivalent: lerp(a, b)(t) = a + t*(b-a)
+  const lerp = (a: number, b: number, t: number) => a + t * (b - a);
 
-      // iRacing writes LapLastLapTime a few ticks after crossing the line
-      let lapTime = 0;
-      const lookAheadLimit = Math.min(i + 30, llt.length);
-      for (let k = i; k < lookAheadLimit; k++) {
-        if (llt[k] > 0 && llt[k] !== llt[i - 1]) { lapTime = llt[k]; break; }
+  interface Cand { startIndex: number; endIndex: number; lapNum: number; }
+  const candidates: Cand[] = [];
+  let cur: Partial<Cand> | null = null;
+  let prevDist = 0, prevLap = 0;
+
+  // Phase 1
+  for (let a = 0; a < numSamples; a++) {
+    const m = distPct[a];
+    const h = lapCh[a];
+
+    if (a && prevDist > 0.9 && m < 0.1 && prevLap < h) {
+      if (cur) {
+        cur.endIndex = a - 1;
+        cur.lapNum   = Math.max(prevLap, candidates.length);
+        candidates.push(cur as Cand);
       }
-      // Fallback: compute from sample count (e.g. out-lap with lapTime=0)
-      if (lapTime <= 0) lapTime = (endIdx - startIdx + 1) / tickRate;
-
-      if (endIdx - startIdx > 10) {
-        laps.push({
-          lap:        parseInt(String(currentLap)),
-          start_idx:  startIdx,
-          end_idx:    endIdx,
-          lap_time_s: Math.round(lapTime * 1000) / 1000,
-          duration_s: Math.round((endIdx - startIdx + 1) / tickRate * 1000) / 1000,
-        });
-      }
-      startIdx   = i;
-      currentLap = ln[i];
+      cur = { startIndex: a };
     }
+
+    prevDist = m;
+    prevLap  = h;
   }
-  // Append the final (possibly incomplete) lap
-  if (startIdx < ln.length) {
+  // Trailing partial lap is intentionally not pushed (no complete end crossing).
+
+  // Phase 2: precise crossing times
+  for (const { startIndex, endIndex, lapNum } of candidates) {
+    // ── sessionTimeStart ────────────────────────────────────────────────────
+    let sessionTimeStart: number;
+    let r = startIndex, s = startIndex - 1;
+
+    if (distPct[r] === 0) {
+      sessionTimeStart = stTime[r];
+    } else if (distPct[r] < 0 || distPct[s] > 1) {
+      s = startIndex + 1;
+      const t = -distPct[r] * (1 / (distPct[s] - distPct[r]));
+      sessionTimeStart = lerp(stTime[r], stTime[s], t);
+    } else {
+      const t = distPct[r] / (1 - distPct[s] + distPct[r]);
+      sessionTimeStart = lerp(stTime[r], stTime[s], t);
+    }
+
+    // ── sessionTimeEnd ──────────────────────────────────────────────────────
+    let sessionTimeEnd: number;
+    r = endIndex + 1;
+    s = endIndex;
+
+    if (distPct[r] <= 0) {
+      sessionTimeEnd = stTime[r];
+    } else if (distPct[s] >= 1) {
+      sessionTimeEnd = stTime[s];
+    } else {
+      const t = distPct[r] / (1 - distPct[s] + distPct[r]);
+      sessionTimeEnd = lerp(stTime[r], stTime[s], t);
+    }
+
+    const lapTime = sessionTimeEnd - sessionTimeStart;
+
     laps.push({
-      lap:        parseInt(String(currentLap)),
-      start_idx:  startIdx,
-      end_idx:    ln.length - 1,
-      lap_time_s: 0,
-      duration_s: Math.round((ln.length - 1 - startIdx) / tickRate * 1000) / 1000,
+      lap:        lapNum,
+      start_idx:  startIndex,
+      end_idx:    endIndex,
+      lap_time_s: lapTime,
+      duration_s: Math.round((endIndex - startIndex + 1) / tickRate * 1000) / 1000,
     });
   }
 
