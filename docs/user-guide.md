@@ -117,7 +117,7 @@ A parameter comparison table derived from the setup YAML embedded in each IBT fi
 
 ## Lap Selection & Colors
 
-Up to **2 laps** can be active at once. Each lap is assigned a color slot:
+Up to **4 laps** can be active at once (one per color slot). Each lap is assigned a color:
 
 | Slot | Color |
 |------|-------|
@@ -164,7 +164,7 @@ The **TelemetryBar** above the map shows live values at the current cursor posit
 
 ## Notes
 
-- **Maximum 2 laps** can be compared at once across all tabs.
+- **Maximum 4 laps** can be compared at once (one per color slot: ref, blue, pink, lime).
 - The **primary session** (green indicator) is used for the track map and all single-session views. Additional sessions are only used in the Car Setup comparison.
 - The **Time Delta** and **Driving Line Diff** channels require a lap in the **ref** slot.
 - The track map requires at least one valid full lap (laps below ~50% of the median lap time are filtered out as out-laps/cool-down laps).

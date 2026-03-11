@@ -24,8 +24,8 @@ TRACE.IT is an Electron desktop app built with **electron-vite**. The main proce
 
 | Layer | Library |
 |-------|---------|
-| Runtime | Electron 40 + electron-vite 5 |
-| UI | React 19 + TypeScript 5 |
+| Runtime | Electron 33 + electron-vite 2 |
+| UI | React 18 + TypeScript 5 |
 | Styling | Tailwind CSS v4 — CSS-first, no config file |
 | State | Zustand 5 |
 | Charts | Chart.js 4 + react-chartjs-2 5 + chartjs-plugin-zoom 2 + hammerjs |
@@ -345,8 +345,24 @@ Separate component above the map canvas. Displays throttle/brake bars, gear, spe
 | `lib/formatters.ts` | `formatLapTime`, `formatDelta`, `arrayMax`, `arrayMin`, `darken` |
 | `lib/interpolate.ts` | Binary-search linear interpolation (`interpolate(xArr, yArr, targetX)`) |
 | `lib/syncChartConfig.ts` | `buildZoomPlugin`, `buildClickHandler` — shared chart option factories |
+| `lib/tabConfig.ts` | `TABS_BEFORE`, `TABS_AFTER` — tab definitions used by TitleBar |
+| `data/changelog.ts` | `CHANGELOG` array + `TYPE_LABEL` map — release history data |
 
 **`arrayMax` / `arrayMin`:** always use these instead of `Math.max(...arr)` — spread overflows the call stack on arrays of 7 000+ elements.
+
+---
+
+### Feature Utilities
+
+Each feature module follows a consistent split: the View component stays thin; heavy logic lives in co-located utility/panel files.
+
+| Feature | Utils file | Extracted components |
+|---------|-----------|----------------------|
+| Damper | `features/damper/damperUtils.ts` — bin constants, `makeBins`, `buildHistogram`, `computeZones`, `makeLsBandPlugin`, `makeChartOptions` | `CornerHistogram.tsx` |
+| Ride Heights | `features/rideheight/rideHeightUtils.ts` — channel names, `buildRideData`, `createRideOptions` | `RidePanel.tsx` |
+| Shocks | `features/shocks/shockUtils.ts` — channel names, `parseBumpRubberGap`, `makeBumpRubberPlugin`, `buildShockData`, `createShockOptions` | `ShockPanel.tsx` |
+| Tire Temps | `features/tiretemp/tireTempUtils.ts` — `CORNERS`, `POS_LABELS`, `POS_DARKEN`, `createTireTempOptions` | — |
+| Track Map | `features/trackmap/trackMapGeometry.ts` — `buildTrack`, GPS→local-metres conversion, dead-reckoning | — |
 
 ---
 
