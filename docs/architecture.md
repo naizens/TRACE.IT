@@ -24,8 +24,8 @@ TRACE.IT is an Electron desktop app built with **electron-vite**. The main proce
 
 | Layer | Library |
 |-------|---------|
-| Runtime | Electron 33 + electron-vite 2 |
-| UI | React 18 + TypeScript 5 |
+| Runtime | Electron 40 + electron-vite 5 |
+| UI | React 19 + TypeScript 5 |
 | Styling | Tailwind CSS v4 — CSS-first, no config file |
 | State | Zustand 5 |
 | Charts | Chart.js 4 + react-chartjs-2 5 + chartjs-plugin-zoom 2 + hammerjs |
