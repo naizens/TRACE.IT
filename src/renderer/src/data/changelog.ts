@@ -8,6 +8,13 @@ export interface Entry {
 
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.11.2',
+    date: '2026-04-05',
+    changes: [
+      { type: 'feat', text: 'App icons added — custom icon now shown in Windows taskbar, title bar, and installer' },
+    ],
+  },
+  {
     version: '0.11.1',
     date: '2026-03-11',
     changes: [
