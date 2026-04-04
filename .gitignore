@@ -1,7 +1,7 @@
 node_modules
 out
 dist
-build
+build/*
 !build/icon.*
 *.log
 .DS_Store
