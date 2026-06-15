@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, screen, shell } from 'electron';
 import { join } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { autoUpdater } from 'electron-updater';
@@ -157,6 +157,9 @@ ipcMain.handle('settings:set', (_, updates: Partial<AppConfig>) => {
 ipcMain.on('settings:relaunch', () => {
   app.relaunch();
   app.exit();
+});
+ipcMain.on('shell:open-external', (_, url: string) => {
+  shell.openExternal(url);
 });
 
 // ── Drag-and-drop parsing (raw buffers from renderer drag events) ─────────────

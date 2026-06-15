@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     relaunch: () => ipcRenderer.send('settings:relaunch'),
   },
 
+  // ── Shell ────────────────────────────────────────────────────────────────
+  shell: {
+    openExternal: (url: string) => ipcRenderer.send('shell:open-external', url),
+  },
+
   // ── Window controls ─────────────────────────────────────────────────────
   windowControls: {
     minimize: ()                           => ipcRenderer.send('window:minimize'),
@@ -58,6 +63,9 @@ export interface ElectronAPI {
   openIbtFiles: () => Promise<ParsedSession[] | null>;
   parseIbtBuffers: (files: Array<{ name: string; data: ArrayBuffer }>) => Promise<ParsedSession[] | null>;
   platform: string;
+  shell: {
+    openExternal: (url: string) => void;
+  };
   settings: {
     get: () => Promise<{ hardwareAcceleration: boolean }>;
     set: (updates: Partial<{ hardwareAcceleration: boolean }>) => Promise<void>;

@@ -6,9 +6,11 @@ import {
   ArrowsPointingInIcon,
   XMarkIcon,
   Cog6ToothIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/16/solid';
 import { ChangelogModal } from '../ui/ChangelogModal';
 import { SettingsModal } from '../ui/SettingsModal';
+import { AboutModal } from '../ui/AboutModal';
 import { ShocksDropdown } from './ShocksDropdown';
 import { TABS_BEFORE, TABS_AFTER } from '../../lib/tabConfig';
 
@@ -20,7 +22,7 @@ export function TitleBar() {
   const hasSessions  = useStore((s) => s.sessions.length > 0);
 
   const [isMaximized, setIsMaximized] = useState(false);
-  const [openModal, setOpenModal] = useState<'changelog' | 'settings' | null>(null);
+  const [openModal, setOpenModal] = useState<'changelog' | 'settings' | 'about' | null>(null);
 
   useEffect(() => {
     window.electronAPI.windowControls.isMaximized().then(setIsMaximized);
@@ -101,6 +103,13 @@ export function TitleBar() {
       {/* ── Settings + Changelog ─────────────────────────────────────────── */}
       <div className="flex items-center pr-2 gap-1 shrink-0" style={{ WebkitAppRegion: 'no-drag' }}>
         <button
+          onClick={() => setOpenModal('about')}
+          title="About"
+          className="flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer text-muted hover:text-text hover:bg-surface-2"
+        >
+          <InformationCircleIcon className="w-3.5 h-3.5" />
+        </button>
+        <button
           onClick={() => setOpenModal('settings')}
           title="Settings"
           className="flex items-center justify-center w-6 h-6 rounded transition-colors cursor-pointer text-muted hover:text-text hover:bg-surface-2"
@@ -139,6 +148,7 @@ export function TitleBar() {
 
     <ChangelogModal open={openModal === 'changelog'} onClose={() => setOpenModal(null)} />
     <SettingsModal  open={openModal === 'settings'}  onClose={() => setOpenModal(null)} />
+    <AboutModal     open={openModal === 'about'}     onClose={() => setOpenModal(null)} />
     </>
   );
 }

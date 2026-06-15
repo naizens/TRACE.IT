@@ -63,7 +63,7 @@
     "publish": {
       "provider": "github",
       "owner": "naizens",
-      "repo": "TRACE.IT-releases"
+      "repo": "TRACE.IT"
     }
   }
 }
