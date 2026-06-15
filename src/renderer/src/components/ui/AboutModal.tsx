@@ -41,7 +41,7 @@ export function AboutModal({ open, onClose }: Props) {
                 <span className="text-accent">TRACE</span>
                 <span className="text-text">.IT</span>
               </span>
-              <span className="text-[10px] text-muted font-mono">v0.11.2</span>
+              <span className="text-[10px] text-muted font-mono">v0.12.0</span>
             </div>
             <p className="text-[11px] text-muted leading-relaxed max-w-xs">
               A desktop telemetry analysis tool for iRacing — overlay laps, inspect

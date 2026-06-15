@@ -8,6 +8,15 @@ export interface Entry {
 
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.12.0',
+    date: '2026-06-15',
+    changes: [
+      { type: 'feat',     text: 'About modal — app info, GitHub link, privacy statement, and open source credits accessible via the ⓘ button in the title bar' },
+      { type: 'refactor', text: 'Releases now published directly to naizens/TRACE.IT on GitHub — auto-updater picks up new versions from the main repo' },
+      { type: 'refactor', text: 'Comprehensive README with beginner guide, feature walkthrough, glossary, and FAQ' },
+    ],
+  },
+  {
     version: '0.11.2',
     date: '2026-04-05',
     changes: [

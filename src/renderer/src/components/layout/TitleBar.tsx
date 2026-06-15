@@ -121,7 +121,7 @@ export function TitleBar() {
           title="Changelog"
           className="flex items-center px-2 py-0.5 rounded text-[10px] font-mono text-muted hover:text-text hover:bg-surface-2 transition-colors cursor-pointer"
         >
-          v0.11.2
+          v0.12.0
         </button>
       </div>
 
