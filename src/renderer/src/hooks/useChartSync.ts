@@ -39,7 +39,7 @@ export function useChartSync(onMapUpdate?: MapUpdateCallback) {
         }));
         chart.tooltip?.setActiveElements(activeEls, { x: px, y: (top + bottom) / 2 });
         chart.setActiveElements(activeEls);
-        chart.update('none');
+        chart.draw();
       }
       onMapUpdate?.(lapDist);
     },
@@ -128,6 +128,16 @@ export function useChartSync(onMapUpdate?: MapUpdateCallback) {
     }
   }, []);
 
+  /** Zoom all charts to an explicit x range */
+  const zoomAll = useCallback((min: number, max: number) => {
+    for (const chart of Object.values(charts.current)) {
+      if (!chart) continue;
+      const xScale = chart.options.scales?.['x'];
+      if (xScale) { xScale.min = min; xScale.max = max; }
+      chart.update('none');
+    }
+  }, []);
+
   /** Set X-axis limits on all charts (called when session/data changes) */
   const updateLimits = useCallback((maxDist: number) => {
     clearPinnedCursor();
@@ -144,5 +154,5 @@ export function useChartSync(onMapUpdate?: MapUpdateCallback) {
     }
   }, []);
 
-  return { register, unregister, handleHover, handleZoom, handleReset, updateLimits };
+  return { register, unregister, handleHover, handleZoom, handleReset, updateLimits, zoomAll };
 }

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ParsedSession, LapSelections, LapColor } from '../types/session';
 import { COLOR_ORDER } from '../lib/constants';
 
-export type Tab = 'telemetry' | 'setup' | 'damper' | 'rideheight' | 'tiretemp' | 'shocks' | 'shockvel';
+export type Tab = 'driving' | 'telemetry' | 'setup' | 'damper' | 'rideheight' | 'tiretemp' | 'shocks' | 'shockvel';
 export type Theme = 'dark' | 'light';
 
 interface State {

@@ -7,6 +7,7 @@ export interface TelemetryInputs {
   speedKph: number;
   steerDeg: number;
   lapColor?: string;
+  delta?: number;    // seconds, cmp minus ref (negative = cmp faster)
 }
 
 export interface TelemetryBarHandle {

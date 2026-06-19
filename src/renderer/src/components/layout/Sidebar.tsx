@@ -7,6 +7,7 @@ import { LapList } from '../../features/sessions/LapList';
 import { TrackMap, TelemetryBar, type TrackMapHandle, type TelemetryBarHandle, type LapEntry } from '../../features/trackmap';
 import { ArrowUpTrayIcon } from '@heroicons/react/16/solid';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { SectorGapsPanel } from '../../features/driving/SectorGapsPanel';
 
 const MIN_WIDTH  = 200;
 const MAX_WIDTH  = 520;
@@ -21,6 +22,7 @@ export function Sidebar({ trackMapRef }: Props) {
   const addSessions  = useStore((s) => s.addSessions);
   const sessions     = useStore((s) => s.sessions);
   const selections   = useStore((s) => s.selections);
+  const activeTab    = useStore((s) => s.activeTab);
   const session      = sessions[0] ?? null;
   const telemetryRef = useRef<TelemetryBarHandle>(null);
   const [width, setWidth]       = useState(260);
@@ -116,8 +118,11 @@ export function Sidebar({ trackMapRef }: Props) {
         {/* Lap list — scrollable, takes remaining space */}
         <LapList />
 
-        {/* Track map — pinned to sidebar bottom, only when at least one full lap exists */}
-        {hasFullLap && (
+        {/* Sector gaps — only on Driving tab */}
+        {activeTab === 'driving' && <SectorGapsPanel />}
+
+        {/* Track map — pinned to sidebar bottom, hidden on Driving tab (has its own map) */}
+        {hasFullLap && activeTab !== 'driving' && (
           <>
             <div className="border-t border-border mt-2 mb-1 shrink-0" />
 

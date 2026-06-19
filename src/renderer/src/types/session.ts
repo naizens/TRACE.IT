@@ -14,6 +14,8 @@ export interface SessionMeta {
   tick_rate_hz: number;
   sample_count: number;
   humidity_pct: number | null;
+  sectors: number[];
+  track_id: number | null;
 }
 
 export interface ParsedSession {

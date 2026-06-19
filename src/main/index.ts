@@ -105,6 +105,7 @@ app.whenReady().then(() => {
 
     autoUpdater.checkForUpdates();
   }
+
 });
 
 app.on('window-all-closed', () => {
@@ -175,3 +176,4 @@ ipcMain.handle('parse-ibt-buffers', async (_, files: Array<{ name: string; data:
   }
   return results.length > 0 ? results : null;
 });
+

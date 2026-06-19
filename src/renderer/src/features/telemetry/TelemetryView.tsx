@@ -33,16 +33,50 @@ export function TelemetryView({ trackMapRef }: Props) {
     });
   }, []);
 
-  const onMapUpdate = useTrackMapUpdate(trackMapRef);
+  const baseOnMapUpdate = useTrackMapUpdate(trackMapRef);
+
+  // ── Sector scrubber ───────────────────────────────────────────────────────
+  const scrubHeadRef    = useRef<HTMLDivElement>(null);
+  const maxDistRef      = useRef(0);
+  const [activeSectorIdx, setActiveSectorIdx] = useState<number | null>(null);
+  // zoomRange stores the current zoom window as fractions [0–1] of the full lap
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number } | null>(null);
+
+  const sectorRegions = useMemo(() => {
+    const s = session?.meta.sectors ?? [];
+    if (s.length === 0) return [];
+    const bounds = [0, ...s, 1];
+    return bounds.slice(0, -1).map((start, i) => ({
+      start, end: bounds[i + 1], label: `S${i + 1}`,
+    }));
+  }, [session]);
+
+  const onMapUpdate = useCallback((lapDist: number) => {
+    baseOnMapUpdate(lapDist);
+    const head = scrubHeadRef.current;
+    if (head && maxDistRef.current > 0) {
+      head.style.left = `${(lapDist / maxDistRef.current) * 100}%`;
+    }
+  }, [baseOnMapUpdate]);
 
   // ── Chart sync ────────────────────────────────────────────────────────────
-  const { register, unregister, handleHover, handleZoom, handleReset, updateLimits } =
+  const { register, unregister, handleHover, handleZoom, handleReset, updateLimits, zoomAll } =
     useChartSync(onMapUpdate);
 
+  // Wrap handleZoom so every zoom/pan (Ctrl+drag, wheel) also updates the scrubber overlay
+  const wrappedHandleZoom = useCallback((sourceId: string, min: number, max: number) => {
+    handleZoom(sourceId, min, max);
+    const md = maxDistRef.current;
+    if (md > 0) {
+      setZoomRange({ min: min / md, max: max / md });
+      setActiveSectorIdx(null); // freeform zoom → no sector button stays lit
+    }
+  }, [handleZoom]);
+
   const hoverRef = useRef<typeof handleHover | null>(null);
-  const zoomRef  = useRef<typeof handleZoom | null>(null);
+  const zoomRef  = useRef<typeof wrappedHandleZoom | null>(null);
   hoverRef.current = handleHover;
-  zoomRef.current  = handleZoom;
+  zoomRef.current  = wrappedHandleZoom;
 
   // ── Chart options (created once) ──────────────────────────────────────────
   const chartOptions = useMemo(
@@ -61,11 +95,18 @@ export function TelemetryView({ trackMapRef }: Props) {
   }, [sessions, selections]);
 
   useEffect(() => {
-    if (chartData) updateLimits(chartData.maxDist);
+    if (chartData) {
+      updateLimits(chartData.maxDist);
+      maxDistRef.current = chartData.maxDist;
+    }
   }, [chartData?.maxDist, updateLimits]);
 
   const handleDblClick = useCallback(() => {
-    if (chartData) handleReset(chartData.maxDist);
+    if (chartData) {
+      handleReset(chartData.maxDist);
+      setZoomRange(null);
+      setActiveSectorIdx(null);
+    }
   }, [chartData, handleReset]);
 
   const registerChart   = useCallback((id: string, instance: Chart) => register(id, instance), [register]);
@@ -125,6 +166,68 @@ export function TelemetryView({ trackMapRef }: Props) {
 
   return (
     <div className="flex-1 flex flex-col gap-0 p-2 overflow-hidden min-h-0">
+      {/* ── Sector scrubber bar ───────────────────────────────────────────── */}
+      {sectorRegions.length > 0 && chartData && (
+        <div className="shrink-0 flex border border-border rounded mb-1.5 overflow-hidden select-none" style={{ height: 22 }}>
+          {/* Sectors wrapper — playhead is relative to this, so Full Lap button never shifts the %  */}
+          <div className="relative flex-1 flex overflow-hidden">
+            {/* Zoom-range overlay (Ctrl+drag or sector click) */}
+            {zoomRange && (
+              <div
+                className="absolute top-0 bottom-0 pointer-events-none z-20"
+                style={{
+                  left:            `${zoomRange.min * 100}%`,
+                  width:           `${(zoomRange.max - zoomRange.min) * 100}%`,
+                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  borderLeft:      '1px solid rgba(255,255,255,0.35)',
+                  borderRight:     '1px solid rgba(255,255,255,0.35)',
+                }}
+              />
+            )}
+            {/* Position playhead */}
+            <div
+              ref={scrubHeadRef}
+              className="absolute top-0 bottom-0 w-px pointer-events-none z-30"
+              style={{ left: '0%', transform: 'translateX(-50%)', backgroundColor: 'var(--color-accent)' }}
+            />
+            {sectorRegions.map((s, i) => (
+              <button
+                key={s.start}
+                type="button"
+                className="relative flex items-center justify-center border-r border-border text-[9px] font-bold tracking-widest uppercase cursor-pointer last:border-r-0 overflow-hidden"
+                style={{ width: `${(s.end - s.start) * 100}%` }}
+                onMouseDown={() => {
+                  setActiveSectorIdx(i);
+                  setZoomRange({ min: s.start, max: s.end });
+                  zoomAll(s.start * maxDistRef.current, s.end * maxDistRef.current);
+                }}
+              >
+                {activeSectorIdx === i && (
+                  <span className="absolute inset-0 bg-accent/20 border-b-2 border-accent pointer-events-none" />
+                )}
+                <span className={activeSectorIdx === i ? 'text-accent font-black' : 'text-muted hover:text-text transition-colors'}>
+                  {s.label}
+                </span>
+              </button>
+            ))}
+          </div>
+          {/* Full Lap reset — shrink-0, außerhalb der Sektor-Breiten */}
+          {zoomRange !== null && (
+            <button
+              type="button"
+              className="shrink-0 flex items-center justify-center px-2.5 border-l border-border text-[9px] font-bold tracking-widest uppercase text-accent hover:text-text hover:bg-white/5 transition-colors cursor-pointer"
+              onMouseDown={() => {
+                setActiveSectorIdx(null);
+                setZoomRange(null);
+                handleReset(maxDistRef.current);
+              }}
+            >
+              Full Lap
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Channel toggles ───────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 shrink-0 pb-1.5">
         {CHART_CONFIGS.map((cfg) => {
@@ -162,7 +265,7 @@ export function TelemetryView({ trackMapRef }: Props) {
                 onRegister={registerChart}
                 onUnregister={unregisterChart}
                 onDblClick={handleDblClick}
-                onWheelPan={handleZoom}
+                onWheelPan={wrappedHandleZoom}
               />
               {i < visibleConfigs.length - 1 && (
                 <div

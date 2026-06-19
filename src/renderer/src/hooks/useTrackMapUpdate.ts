@@ -3,13 +3,17 @@ import type { RefObject } from 'react';
 import { useStore } from '../store/useStore';
 import { COLOR_ORDER, LAP_COLORS } from '../lib/constants';
 import type { TrackMapHandle, TelemetryInputs } from '../features/trackmap';
+import type { TelemetryBarHandle } from '../features/trackmap/TelemetryBar';
 
 /**
  * Returns an `onMapUpdate(lapDist)` callback that reads telemetry from the
  * top two priority-selected laps and forwards both to the TelemetryBar.
  * Priority order: ref > blue > pink > lime.
  */
-export function useTrackMapUpdate(trackMapRef: RefObject<TrackMapHandle | null>) {
+export function useTrackMapUpdate(
+  trackMapRef: RefObject<TrackMapHandle | null>,
+  extraRef?:   RefObject<TelemetryBarHandle | null>,
+) {
   return useCallback(
     (lapDist: number) => {
       const { sessions, selections } = useStore.getState();
@@ -63,7 +67,8 @@ export function useTrackMapUpdate(trackMapRef: RefObject<TrackMapHandle | null>)
       }
 
       trackMapRef.current?.updateMarker(lapDist, inputs);
+      extraRef?.current?.update(inputs);
     },
-    [trackMapRef],
+    [trackMapRef, extraRef],
   );
 }

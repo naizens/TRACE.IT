@@ -1,7 +1,7 @@
 import type { ParsedSession } from '../../types/session';
 
 export const DEG_TO_RAD = Math.PI / 180;
-const EARTH_R    = 6_371_000; // metres
+export const EARTH_R    = 6_371_000; // metres
 
 export interface GpsOrigin {
   lat0Rad: number;

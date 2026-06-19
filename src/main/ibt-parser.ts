@@ -38,6 +38,8 @@ export interface ParsedSession {
     tick_rate_hz: number;
     sample_count: number;
     humidity_pct: number | null;
+    sectors: number[];
+    track_id: number | null;
   };
   laps: LapInfo[];
   data: Record<string, Float32Array | Float64Array>;
@@ -102,6 +104,8 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
   // on unquoted colons in track names, multi-doc separators, etc.
   let carSetup: Record<string, unknown> = {};
   let humidityPct: number | null = null;
+  let sectors: number[] = [];
+  let trackId: number | null = null;
   try {
     const raw = buffer.subarray(sessionInfoOffset, sessionInfoOffset + sessionInfoLen);
     // Stop at first null byte; decode as latin-1 to tolerate non-UTF8 bytes
@@ -123,6 +127,12 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
     // ';' inline comments that break yaml.load, so regex is more reliable)
     const humidMatch = str.match(/RelativeHumidity:\s*(\d+(?:\.\d+)?)/);
     if (humidMatch) humidityPct = parseFloat(humidMatch[1]);
+
+    const sectorMatches = [...str.matchAll(/SectorStartPct:\s*(\d+(?:\.\d+)?)/g)];
+    sectors = sectorMatches.map((m) => parseFloat(m[1])).filter((v) => v > 0);
+
+    const trackIdMatch = str.match(/TrackID:\s*(\d+)/);
+    if (trackIdMatch) trackId = parseInt(trackIdMatch[1]);
   } catch (err) {
     console.error('[ibt-parser] Setup YAML parse error:', (err as Error).message);
   }
@@ -272,6 +282,8 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
       tick_rate_hz: tickRate,
       sample_count: numSamples,
       humidity_pct: humidityPct,
+      sectors,
+      track_id: trackId,
     },
     laps,
     data: results,
