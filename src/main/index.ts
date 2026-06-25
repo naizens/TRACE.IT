@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, screen, shell } from 'electron';
 import { join } from 'path';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, copyFileSync } from 'fs';
 import { autoUpdater } from 'electron-updater';
 import { parseIbt } from './ibt-parser';
 
@@ -89,7 +89,28 @@ function createWindow(): void {
   }
 }
 
+function seedBoundaries(): void {
+  // In packaged builds files land in resources/boundaries/ via extraResources.
+  // In dev they live in the repo's trackmaps/ folder.
+  const src = app.isPackaged
+    ? join(process.resourcesPath, 'boundaries')
+    : join(app.getAppPath(), 'trackmaps');
+
+  const dest = join(app.getPath('documents'), 'TRACE.IT', 'boundaries');
+
+  try {
+    mkdirSync(dest, { recursive: true });
+    if (!existsSync(src)) return;
+    for (const file of readdirSync(src)) {
+      if (!file.endsWith('.json')) continue;
+      const target = join(dest, file);
+      if (!existsSync(target)) copyFileSync(join(src, file), target);
+    }
+  } catch { /* non-fatal */ }
+}
+
 app.whenReady().then(() => {
+  seedBoundaries();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -161,6 +182,24 @@ ipcMain.on('settings:relaunch', () => {
 });
 ipcMain.on('shell:open-external', (_, url: string) => {
   shell.openExternal(url);
+});
+
+// ── Boundaries ────────────────────────────────────────────────────────────────
+ipcMain.handle('load-boundaries', (_event, trackId: number) => {
+  const dir  = join(app.getPath('documents'), 'TRACE.IT', 'boundaries');
+  const path = join(dir, `${trackId}.json`);
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8'));
+  } catch {
+    return null;
+  }
+});
+
+ipcMain.handle('boundaries-dir', () => {
+  const dir = join(app.getPath('documents'), 'TRACE.IT', 'boundaries');
+  mkdirSync(dir, { recursive: true });
+  return dir;
 });
 
 // ── Drag-and-drop parsing (raw buffers from renderer drag events) ─────────────

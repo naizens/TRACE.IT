@@ -30,6 +30,15 @@ export interface ParsedSession {
   _filename: string;
 }
 
+// ─── Track boundaries ───────────────────────────────────────────────────────
+
+export interface TrackBoundaries {
+  trackId:   number;
+  trackName: string;
+  outer: [number, number][]; // [lat, lon] knots
+  inner: [number, number][]; // [lat, lon] knots
+}
+
 // ─── Lap selection types ────────────────────────────────────────────────────
 
 export type LapColor = 'ref' | 'blue' | 'pink' | 'lime';

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# PyInstaller
+build/
+dist/
+*.spec
+*.log
+
+# Tool output (uncomment if you don't want to commit generated data)
+# boundaries.json
+# *.svg
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

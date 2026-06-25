@@ -6,9 +6,9 @@ import {
   useImperativeHandle,
 } from 'react';
 import type { RefObject } from 'react';
-import type { ParsedSession } from '../../types/session';
+import type { ParsedSession, TrackBoundaries } from '../../types/session';
 import type { TelemetryBarHandle, TelemetryInputs } from './TelemetryBar';
-import { buildTrack, DEG_TO_RAD, type GpsOrigin, type TrackData } from './trackMapGeometry';
+import { buildTrack, DEG_TO_RAD, EARTH_R, type GpsOrigin, type TrackData } from './trackMapGeometry';
 import { interpolate } from '../../lib/interpolate';
 
 
@@ -39,6 +39,8 @@ export interface TrackMapHandle {
   updateMarker:  (lapDist: number, inputs?: TelemetryInputs[]) => void;
   zoomToSector:  (startPct: number, endPct: number) => void;
   resetZoom:     () => void;
+  setFollow:     (enabled: boolean) => void;
+  setFollowZoom: (zoom: number) => void;
 }
 
 export interface LapEntry {
@@ -58,9 +60,23 @@ interface Props {
   telemetryRef?: RefObject<TelemetryBarHandle | null>;
   trackLaps?:    LapEntry[];
   deltaData?:    DeltaData;
+  boundaries?:   TrackBoundaries | null;
 }
 
-export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryRef, trackLaps, deltaData }, ref) => {
+function interpTrack(t: TrackData, dist: number): [number, number] {
+  const n = t.dists.length;
+  if (n === 0) return [0, 0];
+  let lo = 0, hi = n - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (t.dists[m] < dist) lo = m + 1; else hi = m; }
+  if (lo === 0) return [t.xs[0], t.ys[0]];
+  const prev = lo - 1;
+  const span = t.dists[lo] - t.dists[prev];
+  if (span <= 0) return [t.xs[lo], t.ys[lo]];
+  const frac = Math.max(0, Math.min(1, (dist - t.dists[prev]) / span));
+  return [t.xs[prev] + (t.xs[lo] - t.xs[prev]) * frac, t.ys[prev] + (t.ys[lo] - t.ys[prev]) * frac];
+}
+
+export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryRef, trackLaps, deltaData, boundaries }, ref) => {
   const canvasRef      = useRef<HTMLCanvasElement>(null);
   const tracksRef      = useRef<TrackData[]>([]);
   const markerRef      = useRef<number | undefined>(undefined);
@@ -73,6 +89,15 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
   const staticDirtyRef = useRef(true);
   const bgColorRef     = useRef('');
   const bboxRef        = useRef<{ minX: number; maxX: number; minY: number; maxY: number } | null>(null);
+  const followRef      = useRef(true);
+  const followZoomRef  = useRef((() => { const v = localStorage.getItem('drivingFollowZoom'); return v !== null ? Number(v) : 7; })());
+  const miniCanvasRef  = useRef<HTMLCanvasElement>(null);
+  const miniOffRef     = useRef<HTMLCanvasElement | null>(null);
+  const miniDirtyRef   = useRef(true);
+  const gpsOriginRef    = useRef<GpsOrigin | undefined>(undefined);
+  const boundariesRef   = useRef<TrackBoundaries | null | undefined>(undefined);
+  const boundaryBboxRef = useRef<{ minX: number; maxX: number; minY: number; maxY: number } | null>(null);
+  const trackLapsRef    = useRef(trackLaps ?? []);
 
 
   // ── Build tracks (GPS or dead-reckoning fallback) ─────────────────────────
@@ -109,8 +134,9 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       }
     }
 
-    // Fallback: no selections — auto-pick the best lap from session[0]
-    if (builds.length === 0 && session) {
+    // Fallback: no selections — auto-pick the best lap from session[0].
+    // Skip when boundaries are loaded; they already show the track layout.
+    if (builds.length === 0 && session && !boundariesRef.current) {
       const dist = session.data['LapDist'];
       const lap =
         session.laps.find((l) => l.lap_time_s > 0 && (dist?.[l.start_idx] ?? 999) < 100) ??
@@ -122,7 +148,9 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       }
     }
 
-    tracksRef.current = builds;
+    gpsOriginRef.current  = gpsOrigin;
+    trackLapsRef.current  = trackLaps ?? [];
+    tracksRef.current     = builds;
 
     // Recompute bounding box once (used by redraw every frame)
     if (builds.length) {
@@ -138,9 +166,41 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       bboxRef.current = null;
     }
     staticDirtyRef.current = true;
+    miniDirtyRef.current   = true;
     redraw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, trackLaps]);
+
+  // ── Sync boundaries prop → ref, compute bbox, trigger redraw ────────────
+  useEffect(() => {
+    boundariesRef.current = boundaries;
+    // Compute projected bbox from boundary points for use when no laps are selected
+    const org = gpsOriginRef.current;
+    if (boundaries && org) {
+      const { lat0Rad, lon0, cosLat0 } = org;
+      const toX = (lo: number) => (lo - lon0) * cosLat0 * EARTH_R * DEG_TO_RAD;
+      const toY = (la: number) => (la * DEG_TO_RAD - lat0Rad) * EARTH_R;
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const pts of [boundaries.outer, boundaries.inner]) {
+        for (const [la, lo] of pts) {
+          const x = toX(lo), y = toY(la);
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+      boundaryBboxRef.current = minX < Infinity ? { minX, maxX, minY, maxY } : null;
+    } else {
+      boundaryBboxRef.current = null;
+    }
+    // If boundaries just arrived and only the fallback lap is shown, remove it
+    if (boundaries && trackLapsRef.current.length === 0) {
+      tracksRef.current = [];
+      bboxRef.current   = null;
+    }
+    staticDirtyRef.current = true;
+    redraw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boundaries]);
 
   // ── Precompute per-point delta colors when deltaData changes ─────────────
   useEffect(() => {
@@ -191,7 +251,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
 
     const ctx    = canvas.getContext('2d')!;
     const tracks = tracksRef.current;
-    const bbox   = bboxRef.current;
+    const bbox   = bboxRef.current ?? boundaryBboxRef.current;
 
     // Derive coordinate transform (cheap — just arithmetic from cached bbox)
     const { scale: zoom, offsetX, offsetY } = viewRef.current;
@@ -226,7 +286,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       oc.fillStyle = bgColorRef.current;
       oc.fillRect(0, 0, W, H);
 
-      if (tracks.length && bbox) {
+      if (bbox) {
         oc.save();
         oc.translate(offsetX, offsetY);
         oc.scale(zoom, zoom);
@@ -246,11 +306,53 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
           oc.lineTo(px(xs[len - 1]), py(ys[len - 1]));
         };
 
-        for (const t of tracks) {
-          strokeSmooth(t.xs, t.ys);
-          oc.lineWidth   = 8 / zoom;
-          oc.strokeStyle = 'rgba(0,0,0,0.5)';
-          oc.stroke();
+        // ── Track boundaries (outer / inner limits) ───────────────────────
+        const bnd = boundariesRef.current;
+        const org = gpsOriginRef.current;
+        if (bnd && org) {
+          const { lat0Rad, lon0, cosLat0 } = org;
+          const toX = (lo: number) => (lo - lon0) * cosLat0 * EARTH_R * DEG_TO_RAD;
+          const toY = (la: number) => (la * DEG_TO_RAD - lat0Rad) * EARTH_R;
+
+          // Fill track surface: outer forward + inner backward = closed shape
+          if (bnd.outer.length > 1 && bnd.inner.length > 1) {
+            oc.beginPath();
+            oc.moveTo(px(toX(bnd.outer[0][1])), py(toY(bnd.outer[0][0])));
+            for (let i = 1; i < bnd.outer.length; i++) {
+              oc.lineTo(px(toX(bnd.outer[i][1])), py(toY(bnd.outer[i][0])));
+            }
+            for (let i = bnd.inner.length - 1; i >= 0; i--) {
+              oc.lineTo(px(toX(bnd.inner[i][1])), py(toY(bnd.inner[i][0])));
+            }
+            oc.closePath();
+            oc.fillStyle = 'rgba(0,0,0,0.35)';
+            oc.fill();
+          }
+
+          // Stroke the boundary edges
+          const strokeBoundary = (pts: [number, number][]) => {
+            if (pts.length < 2) return;
+            oc.beginPath();
+            oc.moveTo(px(toX(pts[0][1])), py(toY(pts[0][0])));
+            for (let i = 1; i < pts.length; i++) {
+              oc.lineTo(px(toX(pts[i][1])), py(toY(pts[i][0])));
+            }
+            oc.lineWidth   = 2.5 / zoom;
+            oc.strokeStyle = 'rgba(255,255,255,0.18)';
+            oc.stroke();
+          };
+
+          strokeBoundary(bnd.outer);
+          strokeBoundary(bnd.inner);
+        }
+
+        if (tracks.length) {
+          for (const t of tracks) {
+            strokeSmooth(t.xs, t.ys);
+            oc.lineWidth   = 8 / zoom;
+            oc.strokeStyle = 'rgba(0,0,0,0.5)';
+            oc.stroke();
+          }
         }
 
         const dc = deltaColorsRef.current;
@@ -275,6 +377,13 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
             oc.stroke();
             i = j;
           }
+          // Draw secondary laps on top of the delta-colored ref lap
+          for (let ti = 1; ti < tracks.length; ti++) {
+            strokeSmooth(tracks[ti].xs, tracks[ti].ys);
+            oc.lineWidth   = 1.5 / zoom;
+            oc.strokeStyle = 'rgba(180,180,180,0.7)';
+            oc.stroke();
+          }
         } else {
           for (const t of tracks) {
             strokeSmooth(t.xs, t.ys);
@@ -291,7 +400,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
     // Blit static layer — O(1) GPU copy
     ctx.drawImage(offscreenRef.current!, 0, 0);
 
-    if (!tracks.length || !bbox) return;
+    if (!tracks.length || !bbox) return; // markers + mini-map require tracks
 
     // ── Position markers (dynamic — drawn on top every frame) ─────────────────
     const md = markerDist ?? markerRef.current;
@@ -300,13 +409,9 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       ctx.translate(offsetX, offsetY);
       ctx.scale(zoom, zoom);
       for (const t of tracks) {
-        let lo = 0, hi = t.dists.length - 1;
-        while (lo < hi) {
-          const m = (lo + hi) >> 1;
-          if (t.dists[m] < md) lo = m + 1; else hi = m;
-        }
+        const [ix, iy] = interpTrack(t, md);
         ctx.beginPath();
-        ctx.arc(px(t.xs[lo]), py(t.ys[lo]), 5 / zoom, 0, Math.PI * 2);
+        ctx.arc(px(ix), py(iy), 5 / zoom, 0, Math.PI * 2);
         ctx.fillStyle   = t.color;
         ctx.fill();
         ctx.lineWidth   = 2 / zoom;
@@ -314,6 +419,99 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
         ctx.stroke();
       }
       ctx.restore();
+    }
+
+    // ── Mini-map (overview, top-left) ─────────────────────────────────────────
+    const mc   = miniCanvasRef.current;
+    const mbnd = boundariesRef.current;
+    const morg = gpsOriginRef.current;
+    if (mc && bbox) {
+      const MW = mc.width  = mc.offsetWidth  || 140;
+      const MH = mc.height = mc.offsetHeight || 100;
+
+      if (miniDirtyRef.current || !miniOffRef.current) {
+        miniDirtyRef.current = false;
+        let mos = miniOffRef.current;
+        if (!mos) { mos = document.createElement('canvas'); miniOffRef.current = mos; }
+        mos.width = MW; mos.height = MH;
+        const moc = mos.getContext('2d')!;
+
+        const pad    = 8;
+        const trkW   = (bbox.maxX - bbox.minX) || 1;
+        const trkH   = (bbox.maxY - bbox.minY) || 1;
+        const mBase  = Math.min((MW - pad * 2) / trkW, (MH - pad * 2) / trkH);
+        const mOffX  = (MW - trkW * mBase) / 2;
+        const mOffY  = (MH - trkH * mBase) / 2;
+        const mpx    = (v: number) => mOffX + (v - bbox.minX) * mBase;
+        const mpy    = (v: number) => MH - mOffY - (v - bbox.minY) * mBase;
+
+        const mSmooth = (xs: number[], ys: number[]) => {
+          const len = xs.length;
+          if (len < 2) return;
+          moc.beginPath();
+          moc.moveTo((mpx(xs[0]) + mpx(xs[1])) / 2, (mpy(ys[0]) + mpy(ys[1])) / 2);
+          for (let i = 1; i < len - 1; i++) {
+            moc.quadraticCurveTo(mpx(xs[i]), mpy(ys[i]),
+              (mpx(xs[i]) + mpx(xs[i + 1])) / 2, (mpy(ys[i]) + mpy(ys[i + 1])) / 2);
+          }
+          moc.lineTo(mpx(xs[len - 1]), mpy(ys[len - 1]));
+        };
+
+        // Boundaries as the track outline (preferred over lap lines)
+        if (mbnd && morg) {
+          const { lat0Rad, lon0, cosLat0 } = morg;
+          const mToX = (lo: number) => (lo - lon0) * cosLat0 * EARTH_R * DEG_TO_RAD;
+          const mToY = (la: number) => (la * DEG_TO_RAD - lat0Rad) * EARTH_R;
+
+          const mStrokeBnd = (pts: [number, number][], lw: number, style: string) => {
+            if (pts.length < 2) return;
+            moc.beginPath();
+            moc.moveTo(mpx(mToX(pts[0][1])), mpy(mToY(pts[0][0])));
+            for (let i = 1; i < pts.length; i++)
+              moc.lineTo(mpx(mToX(pts[i][1])), mpy(mToY(pts[i][0])));
+            moc.lineWidth = lw; moc.strokeStyle = style; moc.stroke();
+          };
+
+          mStrokeBnd(mbnd.inner, 1, 'rgba(255,255,255,0.25)');
+        } else {
+          // Fallback: draw lap lines when no boundaries available
+          for (const t of tracks) {
+            mSmooth(t.xs, t.ys);
+            moc.lineWidth = 3; moc.strokeStyle = 'rgba(0,0,0,0.5)'; moc.stroke();
+          }
+          for (const t of tracks) {
+            mSmooth(t.xs, t.ys);
+            moc.lineWidth = 1.5; moc.strokeStyle = 'rgba(255,255,255,0.35)'; moc.stroke();
+          }
+        }
+
+      }
+
+      const mctx = mc.getContext('2d')!;
+      mctx.drawImage(miniOffRef.current!, 0, 0);
+
+      // Marker dot on mini-map
+      if (md !== undefined) {
+        const pad    = 8;
+        const trkW   = (bbox.maxX - bbox.minX) || 1;
+        const trkH   = (bbox.maxY - bbox.minY) || 1;
+        const mBase  = Math.min((MW - pad * 2) / trkW, (MH - pad * 2) / trkH);
+        const mOffX  = (MW - trkW * mBase) / 2;
+        const mOffY  = (MH - trkH * mBase) / 2;
+        const mpx    = (v: number) => mOffX + (v - bbox.minX) * mBase;
+        const mpy    = (v: number) => MH - mOffY - (v - bbox.minY) * mBase;
+
+        const t = tracks[0];
+        let lo = 0, hi = t.dists.length - 1;
+        while (lo < hi) { const m = (lo + hi) >> 1; if (t.dists[m] < md) lo = m + 1; else hi = m; }
+        mctx.beginPath();
+        mctx.arc(mpx(t.xs[lo]), mpy(t.ys[lo]), 3, 0, Math.PI * 2);
+        mctx.fillStyle = t.color;
+        mctx.fill();
+        mctx.lineWidth = 1.5;
+        mctx.strokeStyle = '#000';
+        mctx.stroke();
+      }
     }
   }, []);
 
@@ -402,6 +600,31 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
   useImperativeHandle(ref, () => ({
     updateMarker(lapDist: number, inputs?: TelemetryInputs[]) {
       markerRef.current = lapDist;
+
+      if (followRef.current) {
+        const canvas = canvasRef.current;
+        const bbox   = bboxRef.current;
+        const tracks = tracksRef.current;
+        if (canvas && bbox && tracks.length > 0) {
+          const W = canvas.width || canvas.clientWidth;
+          const H = canvas.height || canvas.clientHeight;
+          const pad    = 16;
+          const trackW = (bbox.maxX - bbox.minX) || 1;
+          const trackH = (bbox.maxY - bbox.minY) || 1;
+          const base   = Math.min((W - pad * 2) / trackW, (H - pad * 2) / trackH);
+          const offX   = (W - trackW * base) / 2;
+          const offY   = (H - trackH * base) / 2;
+          const [ix, iy] = interpTrack(tracks[0], lapDist);
+          const mBx = offX + (ix - bbox.minX) * base;
+          const mBy = H - offY - (iy - bbox.minY) * base;
+          const fz  = followZoomRef.current;
+          viewRef.current.scale   = fz;
+          viewRef.current.offsetX = W / 2 - mBx * fz;
+          viewRef.current.offsetY = H / 2 - mBy * fz;
+          staticDirtyRef.current  = true;
+        }
+      }
+
       redraw(lapDist);
 
       if (inputs && inputs.length > 0) {
@@ -422,7 +645,7 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
           throttle: Math.round((d['Throttle']?.[idx] ?? 0) * 100),
           brake:    Math.round((d['Brake']?.[idx]    ?? 0) * 100),
           gear:     d['Gear']?.[idx] ?? 0,
-          speedKph: Math.round((d['Speed']?.[idx]    ?? 0) * 3.6),
+          speedKph: (d['Speed']?.[idx] ?? 0) * 3.6,
           steerDeg: d['SteeringWheelAngle']?.[idx]   ?? 0,
         }]);
       }
@@ -532,10 +755,35 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       };
       animFrameRef.current = requestAnimationFrame(animate);
     },
+
+    setFollow(enabled: boolean) {
+      followRef.current = enabled;
+      if (!enabled) {
+        if (animFrameRef.current !== null) cancelAnimationFrame(animFrameRef.current);
+        viewRef.current.scale   = 1;
+        viewRef.current.offsetX = 0;
+        viewRef.current.offsetY = 0;
+        staticDirtyRef.current  = true;
+        redraw(markerRef.current);
+      }
+    },
+
+    setFollowZoom(zoom: number) {
+      followZoomRef.current = zoom;
+    },
   }), [redraw, telemetryRef]);
 
   // ── Render ────────────────────────────────────────────────────────────────
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
+  return (
+    <>
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+      <canvas
+        ref={miniCanvasRef}
+        className="absolute top-2 left-2 z-10 pointer-events-none"
+        style={{ width: 240, height: 175 }}
+      />
+    </>
+  );
 });
 
 TrackMap.displayName = 'TrackMap';

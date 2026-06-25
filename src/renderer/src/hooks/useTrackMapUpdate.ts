@@ -60,7 +60,7 @@ export function useTrackMapUpdate(
           throttle: Math.round((d['Throttle']?.[idx] ?? 0) * 100),
           brake:    Math.round((d['Brake']?.[idx]    ?? 0) * 100),
           gear:     d['Gear']?.[idx] ?? 0,
-          speedKph: Math.round((d['Speed']?.[idx]    ?? 0) * 3.6),
+          speedKph: (d['Speed']?.[idx] ?? 0) * 3.6,
           steerDeg: d['SteeringWheelAngle']?.[idx]   ?? 0,
           lapColor: LAP_COLORS[selections[key]],
         });

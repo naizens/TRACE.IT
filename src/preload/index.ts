@@ -30,6 +30,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     relaunch: () => ipcRenderer.send('settings:relaunch'),
   },
 
+  // ── Boundaries ───────────────────────────────────────────────────────────
+  boundaries: {
+    load: (trackId: number): Promise<unknown> =>
+      ipcRenderer.invoke('load-boundaries', trackId),
+    getDir: (): Promise<string> =>
+      ipcRenderer.invoke('boundaries-dir'),
+  },
+
   // ── Shell ────────────────────────────────────────────────────────────────
   shell: {
     openExternal: (url: string) => ipcRenderer.send('shell:open-external', url),
@@ -63,6 +71,10 @@ export interface ElectronAPI {
   openIbtFiles: () => Promise<ParsedSession[] | null>;
   parseIbtBuffers: (files: Array<{ name: string; data: ArrayBuffer }>) => Promise<ParsedSession[] | null>;
   platform: string;
+  boundaries: {
+    load: (trackId: number) => Promise<unknown>;
+    getDir: () => Promise<string>;
+  };
   shell: {
     openExternal: (url: string) => void;
   };

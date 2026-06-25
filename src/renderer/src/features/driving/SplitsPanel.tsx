@@ -100,7 +100,6 @@ export const SplitsPanel = forwardRef<SplitsPanelHandle, Props>(
 
     // ── Imperative refs ───────────────────────────────────────────────────────
     const rowRefs        = useRef<(HTMLElement | null)[]>([]);
-    const fullLapBtnRef  = useRef<HTMLButtonElement>(null);
     const posIdxRef      = useRef(-1);
     const activeIdxRef   = useRef<number | null>(null);
     const regionsRef     = useRef(rows.map((r) => ({ start: r.start, end: r.end })));
@@ -117,7 +116,7 @@ export const SplitsPanel = forwardRef<SplitsPanelHandle, Props>(
         const pct = dist / md;
         let newIdx = regs.length - 1;
         for (let i = 0; i < regs.length; i++) {
-          if (pct <= regs[i].end) { newIdx = i; break; }
+          if (pct < regs[i].end) { newIdx = i; break; }
         }
         if (newIdx === posIdxRef.current) return;
 
@@ -147,46 +146,32 @@ export const SplitsPanel = forwardRef<SplitsPanelHandle, Props>(
         }
 
         activeIdxRef.current = idx;
-
-        // Full Lap button: show whenever any zoom is active (idx !== null)
-        if (fullLapBtnRef.current) {
-          fullLapBtnRef.current.style.display = idx !== null ? 'flex' : 'none';
-        }
       },
     }));
 
     if (rows.length === 0) return null;
 
     return (
-      <div className="shrink-0 border-b border-border select-none">
+      <div className="shrink-0 border-b border-border select-none rounded-md m-2 bg-stone-500/5">
         {/* Header */}
-        <div className="flex items-center h-6 px-2 border-b border-border bg-surface-2">
+        <div className="flex items-center h-6 px-2   rounded ">
           <span
-            className="flex-1 text-right text-[9px] font-bold uppercase tracking-widest"
+            className="flex-1 text-left text-[12px] font-bold uppercase tracking-widest "
             style={{ color: hasCmp ? lapColor : refColor }}
           >
             LAP
           </span>
-          <span className="w-10 text-center text-[9px] font-bold text-muted uppercase tracking-widest">
-            SPLITS
+          <span className="w-full text-center text-[12px] font-bold text-muted uppercase tracking-widest">
+            SECTORS
           </span>
           {hasCmp ? (
-            <span className="flex-1 text-[9px] font-bold uppercase tracking-widest" style={{ color: refColor }}>
+            <span className="flex-1 text-[12px] text-right font-bold uppercase tracking-widest" style={{ color: refColor }}>
               REF
             </span>
           ) : (
             <span className="flex-1" />
           )}
           {/* Full Lap button — hidden until a sector is active */}
-          <button
-            ref={fullLapBtnRef}
-            type="button"
-            className="items-center justify-center h-4 px-2 ml-1 rounded text-[9px] font-bold tracking-widest uppercase text-accent hover:text-text hover:bg-white/10 transition-colors cursor-pointer border border-border"
-            style={{ display: 'none' }}
-            onMouseDown={(e) => { e.stopPropagation(); onFullLap(); }}
-          >
-            Full Lap
-          </button>
         </div>
 
         {/* Sector rows */}
@@ -200,45 +185,45 @@ export const SplitsPanel = forwardRef<SplitsPanelHandle, Props>(
           >
             {hasCmp ? (
               <span
-                className="flex-1 text-right text-[12px] font-bold tabular-nums"
+                className="flex-1 text-left text-[12px] font-bold tabular-nums"
                 style={{ color: row.delta < 0 ? '#22c55e' : row.delta > 0 ? '#ef4444' : 'var(--color-text)' }}
               >
                 {row.lapTime.toFixed(3)}
               </span>
             ) : (
-              <span className="flex-1 text-right text-[12px] font-bold tabular-nums text-text">
+              <span className="flex-1 text-left text-[12px] font-bold tabular-nums text-text">
                 {row.refTime.toFixed(3)}
               </span>
             )}
 
-            <span className="w-10 text-center text-[10px] font-bold text-muted">{row.label}</span>
+            <span className="w-10 text-center text-[12px] font-bold text-muted h-full content-center">{row.label}</span>
 
             {hasCmp ? (
-              <span className="flex-1 text-[11px] tabular-nums text-muted">{row.refTime.toFixed(3)}</span>
+              <span className="flex-1 text-[12px] text-right tabular-nums text-muted">{row.refTime.toFixed(3)}</span>
             ) : (
               <span className="flex-1" />
             )}
           </div>
         ))}
 
-        {/* Total row */}
+        {/* Total row — click to reset to full lap */}
         {total && (
-          <div className="flex items-center h-7 px-2 border-t border-border">
+          <div className="flex items-center h-7 px-2 border-t border-border cursor-pointer hover:bg-white/5 transition-colors" onMouseDown={() => onFullLap()}>
             {hasCmp ? (
               <span
-                className="flex-1 text-right text-[12px] font-bold tabular-nums"
+                className="flex-1 text-left text-[12px] font-bold tabular-nums"
                 style={{ color: total.delta < 0 ? '#22c55e' : total.delta > 0 ? '#ef4444' : 'var(--color-text)' }}
               >
                 {formatLapTime(total.lap)}
               </span>
             ) : (
-              <span className="flex-1 text-right text-[12px] font-bold tabular-nums text-text">
+              <span className="flex-1 text-left text-[12px] font-bold tabular-nums text-text">
                 {formatLapTime(total.ref)}
               </span>
             )}
-            <span className="w-10 text-center text-[11px] text-muted">⏱</span>
+            <span className="w-10 text-center text-[12px] text-muted">⏱</span>
             {hasCmp ? (
-              <span className="flex-1 text-[11px] tabular-nums text-muted">{formatLapTime(total.ref)}</span>
+              <span className="flex-1 text-[12px] text-right tabular-nums text-muted">{formatLapTime(total.ref)}</span>
             ) : (
               <span className="flex-1" />
             )}

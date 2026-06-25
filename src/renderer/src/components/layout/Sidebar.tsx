@@ -19,7 +19,9 @@ interface Props {
 }
 
 export function Sidebar({ trackMapRef }: Props) {
-  const addSessions  = useStore((s) => s.addSessions);
+  const addSessions    = useStore((s) => s.addSessions);
+  const setBoundaries  = useStore((s) => s.setBoundaries);
+  const boundaries     = useStore((s) => s.boundaries);
   const sessions     = useStore((s) => s.sessions);
   const selections   = useStore((s) => s.selections);
   const activeTab    = useStore((s) => s.activeTab);
@@ -70,7 +72,14 @@ export function Sidebar({ trackMapRef }: Props) {
 
   async function handleOpenFiles() {
     const results = await window.electronAPI.openIbtFiles();
-    if (results) addSessions(results);
+    if (results) {
+      addSessions(results);
+      const trackId = results[0]?.meta?.track_id;
+      if (trackId != null) {
+        const b = await window.electronAPI.boundaries.load(trackId);
+        setBoundaries(b as import('../../types/session').TrackBoundaries | null);
+      }
+    }
   }
 
   function handleResizeMouseDown(e: React.MouseEvent) {
@@ -138,7 +147,7 @@ export function Sidebar({ trackMapRef }: Props) {
               className="relative mt-1.5 shrink-0 bg-surface-2 border border-border rounded overflow-hidden"
               style={{ height: mapHeight }}
             >
-              <TrackMap ref={trackMapRef} session={session} trackLaps={trackLaps} telemetryRef={telemetryRef} />
+              <TrackMap ref={trackMapRef} session={session} trackLaps={trackLaps} telemetryRef={telemetryRef} boundaries={boundaries} />
               <div
                 className="absolute top-0 inset-x-0 h-4 z-10 cursor-ns-resize group"
                 onMouseDown={(e) => {

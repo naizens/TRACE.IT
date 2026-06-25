@@ -52,6 +52,13 @@
     "files": [
       "out/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "trackmaps",
+        "to": "boundaries",
+        "filter": ["**/*.json"]
+      }
+    ],
     "win": {
       "target": "nsis"
     },

@@ -9,10 +9,35 @@ function gearLabel(g: number): string {
   return String(g);
 }
 
-const WHEEL_STROKE = '#3f3f46';
+function WheelSvg({ r }: { r: React.RefObject<SVGSVGElement | null> }) {
+  return (
+    <svg ref={r} viewBox="0 0 20 20" width="32" height="32" fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ transform: 'rotate(0deg)', transformOrigin: 'center', flexShrink: 0, color: '#52525b' }}>
+      <g clipPath="url(#sw-clip)">
+        <path d="M10 19C14.9706 19 19 14.9706 19 10C19 5.02944 14.9706 1 10 1C5.02944 1 1 5.02944 1 10C1 14.9706 5.02944 19 10 19Z" stroke="currentColor" strokeWidth="2"/>
+        <path d="M10 19V10" stroke="currentColor" strokeWidth="2"/>
+        <path d="M19 10H1" stroke="currentColor" strokeWidth="2"/>
+        <mask id="sw-mask-1" fill="white">
+          <path d="M14 9C13.3434 9 12.6932 9.12933 12.0866 9.3806C11.48 9.63188 10.9288 10.0002 10.4645 10.4645C10.0002 10.9288 9.63188 11.48 9.3806 12.0866C9.12933 12.6932 9 13.3434 9 14L10.9501 14C10.9501 13.5995 11.029 13.2029 11.1823 12.8329C11.3356 12.4628 11.5602 12.1266 11.8434 11.8434C12.1266 11.5602 12.4628 11.3356 12.8329 11.1823C13.2029 11.029 13.5995 10.9501 14 10.9501L14 9Z"/>
+        </mask>
+        <path d="M14 9C13.3434 9 12.6932 9.12933 12.0866 9.3806C11.48 9.63188 10.9288 10.0002 10.4645 10.4645C10.0002 10.9288 9.63188 11.48 9.3806 12.0866C9.12933 12.6932 9 13.3434 9 14L10.9501 14C10.9501 13.5995 11.029 13.2029 11.1823 12.8329C11.3356 12.4628 11.5602 12.1266 11.8434 11.8434C12.1266 11.5602 12.4628 11.3356 12.8329 11.1823C13.2029 11.029 13.5995 10.9501 14 10.9501L14 9Z" stroke="currentColor" strokeWidth="4" mask="url(#sw-mask-1)"/>
+        <mask id="sw-mask-2" fill="white">
+          <path d="M11 14C11 13.3434 10.8707 12.6932 10.6194 12.0866C10.3681 11.48 9.99983 10.9288 9.53553 10.4645C9.07124 10.0002 8.52004 9.63188 7.91342 9.3806C7.30679 9.12933 6.65661 9 6 9L6 10.9501C6.40051 10.9501 6.79711 11.029 7.16713 11.1823C7.53716 11.3356 7.87337 11.5602 8.15658 11.8434C8.43978 12.1266 8.66444 12.4628 8.81771 12.8329C8.97098 13.2029 9.04986 13.5995 9.04986 14H11Z"/>
+        </mask>
+        <path d="M11 14C11 13.3434 10.8707 12.6932 10.6194 12.0866C10.3681 11.48 9.99983 10.9288 9.53553 10.4645C9.07124 10.0002 8.52004 9.63188 7.91342 9.3806C7.30679 9.12933 6.65661 9 6 9L6 10.9501C6.40051 10.9501 6.79711 11.029 7.16713 11.1823C7.53716 11.3356 7.87337 11.5602 8.15658 11.8434C8.43978 12.1266 8.66444 12.4628 8.81771 12.8329C8.97098 13.2029 9.04986 13.5995 9.04986 14H11Z" stroke="currentColor" strokeWidth="4" mask="url(#sw-mask-2)"/>
+        <path d="M11.1163 1.0695C10.3728 0.976557 9.62053 0.976836 8.87706 1.07033" stroke="#0EA5E9" strokeWidth="2"/>
+      </g>
+      <defs>
+        <clipPath id="sw-clip">
+          <rect width="20" height="20" fill="white"/>
+        </clipPath>
+      </defs>
+    </svg>
+  );
+}
 
 interface SlotRefs {
-  dot:   React.RefObject<HTMLSpanElement | null>;
   tBar:  React.RefObject<HTMLSpanElement | null>;
   bBar:  React.RefObject<HTMLSpanElement | null>;
   tNum:  React.RefObject<HTMLSpanElement | null>;
@@ -23,76 +48,74 @@ interface SlotRefs {
 }
 
 function applySlot(refs: SlotRefs, inp: TelemetryInputs) {
-  if (refs.dot.current && inp.lapColor) refs.dot.current.style.backgroundColor = inp.lapColor;
-  if (refs.tBar.current)  refs.tBar.current.style.height    = `${inp.throttle}%`;
-  if (refs.bBar.current)  refs.bBar.current.style.height    = `${inp.brake}%`;
-  if (refs.tNum.current)  refs.tNum.current.textContent     = String(inp.throttle);
-  if (refs.bNum.current)  refs.bNum.current.textContent     = String(inp.brake);
-  if (refs.gear.current)  refs.gear.current.textContent     = gearLabel(inp.gear);
-  if (refs.spd.current)   refs.spd.current.textContent      = `${inp.speedKph} km/h`;
+  if (refs.tBar.current)  refs.tBar.current.style.width  = `${inp.throttle}%`;
+  if (refs.bBar.current)  refs.bBar.current.style.width  = `${inp.brake}%`;
+  if (refs.tNum.current)  refs.tNum.current.textContent  = `${inp.throttle}%`;
+  if (refs.bNum.current)  refs.bNum.current.textContent  = `${inp.brake}%`;
+  if (refs.gear.current)  refs.gear.current.textContent  = gearLabel(inp.gear);
+  if (refs.spd.current)   refs.spd.current.textContent   = `${inp.speedKph.toFixed(1)} km/h`;
   if (refs.wheel.current) {
     refs.wheel.current.style.transform       = `rotate(${-inp.steerDeg}deg)`;
     refs.wheel.current.style.transformOrigin = 'center';
+    if (inp.lapColor) refs.wheel.current.style.color = inp.lapColor;
   }
 }
 
-function SlotDisplay({ refs, lapColor }: { refs: SlotRefs; lapColor?: string }) {
+// Left slot: wheel LEFT → bars side-by-side → gear → speed
+function LeftSlot({ refs }: { refs: SlotRefs }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 min-h-0 py-4 px-4 overflow-visible">
+    <div className="flex items-center gap-2 flex-1 min-w-0">
+      <WheelSvg r={refs.wheel} />
 
-      {/* Colour dot */}
-      <span
-        ref={refs.dot}
-        style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: lapColor ?? '#52525b', flexShrink: 0 }}
-      />
-
-      {/* Throttle + Wheel + Brake — fixed bar height so it never stretches awkwardly */}
-      <div className="flex gap-4 items-end w-full justify-center" style={{ height: 180 }}>
-
-        {/* Throttle */}
-        <div className="flex flex-col items-center gap-1.5 h-full">
-          <span className="text-[10px] font-bold tracking-widest uppercase text-muted shrink-0">Gas</span>
-          <div className="flex-1 w-10 bg-surface-2 rounded overflow-hidden flex flex-col justify-end min-h-0">
-            <span
-              ref={refs.tBar}
-              style={{ width: '100%', height: '0%', backgroundColor: '#22c55e', display: 'block', transition: 'height 60ms linear' }}
-            />
+      {/* GAS + BRK side by side */}
+      <div className="flex gap-2 flex-1 min-w-0">
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          <div className="flex-1 h-2 bg-surface-2 rounded overflow-hidden">
+            <span ref={refs.tBar} style={{ width: '0%', height: '100%', backgroundColor: '#22c55e', display: 'block', transition: 'width 60ms linear' }} />
           </div>
-          <span ref={refs.tNum} className="text-sm font-black tabular-nums shrink-0" style={{ color: '#22c55e' }}>0</span>
+          <span ref={refs.tNum} className="text-[9px] font-black tabular-nums shrink-0" style={{ color: '#22c55e', width: 26, textAlign: 'right' }}>0%</span>
         </div>
-
-        {/* Steering wheel + Gear + Speed */}
-        <div className="flex flex-col items-center justify-end gap-3 self-end pb-6 overflow-visible">
-          <svg
-            ref={refs.wheel}
-            viewBox="-14 -14 28 28"
-            width="88" height="88"
-            style={{ transform: 'rotate(0deg)', transformOrigin: 'center', flexShrink: 0 }}
-          >
-            <circle cx="0" cy="0" r="11" fill="transparent" stroke={WHEEL_STROKE} strokeWidth="2.5" />
-            <line x1="0"   y1="11"  x2="0"   y2="3.5" stroke={WHEEL_STROKE} strokeWidth="2" />
-            <line x1="-11" y1="0"   x2="-3.5" y2="0"  stroke={WHEEL_STROKE} strokeWidth="2" />
-            <line x1="11"  y1="0"   x2="3.5"  y2="0"  stroke={WHEEL_STROKE} strokeWidth="2" />
-            <circle cx="0" cy="0" r="3" fill={WHEEL_STROKE} />
-            <circle cx="0" cy="-11" r="2.2" fill="#f59e0b" />
-          </svg>
-          <div className="flex flex-col items-center gap-0.5">
-            <span ref={refs.gear} className="text-4xl font-black text-text leading-none tabular-nums">N</span>
-            <span ref={refs.spd} className="text-[11px] font-bold text-muted tabular-nums">0 km/h</span>
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          <div className="flex-1 h-2 bg-surface-2 rounded overflow-hidden">
+            <span ref={refs.bBar} style={{ width: '0%', height: '100%', backgroundColor: '#ef4444', display: 'block', transition: 'width 60ms linear' }} />
           </div>
+          <span ref={refs.bNum} className="text-[9px] font-black tabular-nums shrink-0" style={{ color: '#ef4444', width: 26, textAlign: 'right' }}>0%</span>
         </div>
+      </div>
 
-        {/* Brake */}
-        <div className="flex flex-col items-center gap-1.5 h-full">
-          <span className="text-[10px] font-bold tracking-widest uppercase text-muted shrink-0">Bremse</span>
-          <div className="flex-1 w-10 bg-surface-2 rounded overflow-hidden flex flex-col justify-end min-h-0">
-            <span
-              ref={refs.bBar}
-              style={{ width: '100%', height: '0%', backgroundColor: '#ef4444', display: 'block', transition: 'height 60ms linear' }}
-            />
+      <div className="flex items-center gap-2 shrink-0">
+        <span ref={refs.gear} className="text-xl font-black text-text tabular-nums leading-none" style={{ minWidth: 14 }}>N</span>
+        <span ref={refs.spd} className="text-[11px] font-bold text-muted tabular-nums">0.0 km/h</span>
+      </div>
+    </div>
+  );
+}
+
+// Right slot: speed → gear → bars side-by-side → wheel RIGHT (fully mirrored)
+function RightSlot({ refs }: { refs: SlotRefs }) {
+  return (
+    <div className="flex items-center gap-2 flex-1 min-w-0 flex-row-reverse">
+      <WheelSvg r={refs.wheel} />
+
+      {/* GAS + BRK side by side (mirrored: BRK first, then GAS, bars grow right→left) */}
+      <div className="flex gap-2 flex-1 min-w-0 flex-row-reverse">
+        <div className="flex items-center gap-1 flex-1 min-w-0 flex-row-reverse">
+          <div className="flex-1 h-2 bg-surface-2 rounded overflow-hidden" style={{ transform: 'scaleX(-1)' }}>
+            <span ref={refs.tBar} style={{ width: '0%', height: '100%', backgroundColor: '#22c55e', display: 'block', transition: 'width 60ms linear' }} />
           </div>
-          <span ref={refs.bNum} className="text-sm font-black tabular-nums shrink-0" style={{ color: '#ef4444' }}>0</span>
+          <span ref={refs.tNum} className="text-[9px] font-black tabular-nums shrink-0" style={{ color: '#22c55e', width: 26 }}>0%</span>
         </div>
+        <div className="flex items-center gap-1 flex-1 min-w-0 flex-row-reverse">
+          <div className="flex-1 h-2 bg-surface-2 rounded overflow-hidden" style={{ transform: 'scaleX(-1)' }}>
+            <span ref={refs.bBar} style={{ width: '0%', height: '100%', backgroundColor: '#ef4444', display: 'block', transition: 'width 60ms linear' }} />
+          </div>
+          <span ref={refs.bNum} className="text-[9px] font-black tabular-nums shrink-0" style={{ color: '#ef4444', width: 26 }}>0%</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 shrink-0 flex-row-reverse">
+        <span ref={refs.gear} className="text-xl font-black text-text tabular-nums leading-none" style={{ minWidth: 14 }}>N</span>
+        <span ref={refs.spd} className="text-[11px] font-bold text-muted tabular-nums">0.0 km/h</span>
       </div>
     </div>
   );
@@ -102,14 +125,14 @@ export const DrivingHUD = forwardRef<TelemetryBarHandle>((_, ref) => {
   const slot1WrapRef = useRef<HTMLDivElement>(null);
 
   const s0: SlotRefs = {
-    dot:   useRef(null), tBar: useRef(null), bBar: useRef(null),
-    tNum:  useRef(null), bNum: useRef(null), gear: useRef(null),
-    spd:   useRef(null), wheel: useRef(null),
+    tBar: useRef(null), bBar: useRef(null),
+    tNum: useRef(null), bNum: useRef(null), gear: useRef(null),
+    spd: useRef(null), wheel: useRef(null),
   };
   const s1: SlotRefs = {
-    dot:   useRef(null), tBar: useRef(null), bBar: useRef(null),
-    tNum:  useRef(null), bNum: useRef(null), gear: useRef(null),
-    spd:   useRef(null), wheel: useRef(null),
+    tBar: useRef(null), bBar: useRef(null),
+    tNum: useRef(null), bNum: useRef(null), gear: useRef(null),
+    spd: useRef(null), wheel: useRef(null),
   };
 
   useImperativeHandle(ref, () => ({
@@ -122,17 +145,12 @@ export const DrivingHUD = forwardRef<TelemetryBarHandle>((_, ref) => {
   }));
 
   return (
-    <div className="flex-1 flex overflow-visible min-h-0 select-none pointer-events-none">
-
-      {/* Slot 0 — always visible */}
-      <SlotDisplay refs={s0} />
-
-      {/* Divider + Slot 1 — shown when 2nd lap selected */}
-      <div ref={slot1WrapRef} style={{ display: 'none', flex: 1, flexDirection: 'row', minHeight: 0, overflow: 'visible' }}>
-        <div className="w-px bg-border self-stretch my-4 shrink-0" />
-        <SlotDisplay refs={s1} />
+    <div className="flex items-center px-3 min-h-0 select-none pointer-events-none" style={{ height: 44 }}>
+      <LeftSlot refs={s0} />
+      <div ref={slot1WrapRef} className="items-center" style={{ display: 'none', gap: 0, flex: 1 }}>
+        <div className="w-px bg-border self-stretch mx-3 shrink-0" style={{ marginTop: 8, marginBottom: 8 }} />
+        <RightSlot refs={s1} />
       </div>
-
     </div>
   );
 });

@@ -75,6 +75,7 @@ function makeBaseOptions(maxDist: number): ChartOptions<'line'> {
         },
         grid:   { color: 'rgba(255,255,255,0.04)' },
         border: { display: false },
+        afterFit(scale) { scale.width = 38; },
       },
     },
   };
@@ -140,12 +141,11 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
       );
     }, [maxDist]);
 
-    // ── DOM tooltip update — interpolates value between surrounding data points ─
+    // ── DOM tooltip update — per-dataset binary search avoids index mismatch ───
     const updateTooltip = useCallback((
       key: string,
       chart: Chart<'line'>,
       lapDist: number,
-      dataIndex: number,
     ) => {
       const el = tooltipRefs.current[key];
       if (!el) return;
@@ -163,12 +163,19 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
       for (const dataset of chart.data.datasets) {
         if ((dataset.label as string)?.endsWith(' ABS')) continue;
         const data = dataset.data as { x: number; y: number }[];
-        const i    = Math.min(Math.max(0, dataIndex), data.length - 1);
-        const curr = data[i];
-        const prev = data[Math.max(0, i - 1)];
+        if (!data.length) continue;
+
+        // Binary search per-dataset so different-length arrays stay in sync
+        let lo = 0, hi = data.length - 1;
+        while (lo < hi) {
+          const m = (lo + hi) >> 1;
+          if ((data[m] as { x: number }).x < lapDist) lo = m + 1; else hi = m;
+        }
+
+        const curr = data[lo];
+        const prev = data[Math.max(0, lo - 1)];
         if (!curr) continue;
 
-        // Linear interpolation between the two surrounding data points
         const frac = (prev && curr.x !== prev.x)
           ? Math.max(0, Math.min(1, (lapDist - prev.x) / (curr.x - prev.x)))
           : 1;
@@ -185,8 +192,7 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
     }, []);
 
     // ── Cross-chart sync — CSS cursor line + DOM tooltips, zero chart.draw() ──
-    const syncAllCharts = useCallback((lapDist: number, dataIndex: number) => {
-      // Move the shared CSS cursor line (no canvas redraw needed)
+    const syncAllCharts = useCallback((lapDist: number) => {
       const anyChart = Object.values(chartRefs.current).find(Boolean);
       const cl = cursorLineRef.current;
       if (anyChart && cl) {
@@ -198,10 +204,9 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
           cl.style.display = 'none';
         }
       }
-      // Update DOM tooltips only
       for (const [key, chart] of Object.entries(chartRefs.current)) {
         if (!chart) continue;
-        updateTooltip(key, chart, lapDist, dataIndex);
+        updateTooltip(key, chart, lapDist);
       }
     }, [updateTooltip]);
 
@@ -209,16 +214,7 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
       setXRange:   (min, max) => applyXRange(min, max),
       resetXRange: ()         => applyXRange(0, maxDistRef.current),
       syncHover: (dist: number) => {
-        const charts = Object.values(chartRefs.current).filter(Boolean) as Chart<'line'>[];
-        if (!charts.length) return;
-        const data = charts[0].data.datasets[0]?.data as { x: number }[] | undefined;
-        if (!data?.length) return;
-        let lo = 0, hi = data.length - 1;
-        while (lo < hi) {
-          const m = (lo + hi) >> 1;
-          if ((data[m] as { x: number }).x < dist) lo = m + 1; else hi = m;
-        }
-        syncAllCharts(dist, lo);
+        syncAllCharts(dist);
       },
       moveCursor: (dist: number) => {
         const el = cursorLineRef.current;
@@ -255,16 +251,8 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
         const rect    = chart.canvas.getBoundingClientRect();
         const lapDist = xScale.getValueForPixel(e.clientX - rect.left);
         if (lapDist == null || lapDist < xScale.min || lapDist > xScale.max) return;
-        // Binary search on full data array (avoids getElementsAtEventForMode + decimation issues)
-        const data = chart.data.datasets[0]?.data as { x: number }[] | undefined;
-        if (!data?.length) return;
-        let lo = 0, hi = data.length - 1;
-        while (lo < hi) {
-          const m = (lo + hi) >> 1;
-          if ((data[m] as { x: number }).x < lapDist) lo = m + 1; else hi = m;
-        }
         onDistHoverRef.current?.(lapDist);
-        syncAllCharts(lapDist, lo);
+        syncAllCharts(lapDist);
       };
 
       const onMouseDown = (e: MouseEvent) => {
