@@ -419,6 +419,7 @@ export function DrivingView({ trackMapRef }: Props) {
                 setActiveSectorIdx(null);
                 splitsPanelRef.current?.setActiveSector(-1);
               }}
+              onFullLap={sectorClickProps.onFullLap}
             />
           </div>
         </div>

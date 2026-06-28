@@ -16,6 +16,7 @@ interface Props {
   selections:    LapSelections;
   onDistHover?:  (dist: number) => void;
   onZoom?:       () => void;
+  onFullLap?:    () => void;
 }
 
 const CHANNELS = [
@@ -82,7 +83,7 @@ function makeBaseOptions(maxDist: number): ChartOptions<'line'> {
 }
 
 export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
-  ({ sessions, selections, onDistHover, onZoom }, ref) => {
+  ({ sessions, selections, onDistHover, onZoom, onFullLap }, ref) => {
     const { datasets, maxDist } = useMemo(
       () => buildChartData(sessions, selections),
       [sessions, selections],
@@ -93,6 +94,8 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
 
     const onZoomRef = useRef(onZoom);
     onZoomRef.current = onZoom;
+    const onFullLapRef = useRef(onFullLap);
+    onFullLapRef.current = onFullLap;
 
     const maxDistRef   = useRef(maxDist);
     maxDistRef.current = maxDist;
@@ -286,10 +289,13 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
         onZoomRef.current?.();
       };
 
+      const onDblClick = () => onFullLapRef.current?.();
+
       canvas.addEventListener('mousedown',  onMouseDown);
       canvas.addEventListener('mousemove',  onMouseMove);
       canvas.addEventListener('mouseleave', onLeave);
       canvas.addEventListener('wheel',      onWheel, { passive: false });
+      canvas.addEventListener('dblclick',   onDblClick);
       window.addEventListener('mouseup',    onMouseUp);
 
       cleanupRefs.current[key] = () => {
@@ -298,6 +304,7 @@ export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
         canvas.removeEventListener('mousemove',  onMouseMove);
         canvas.removeEventListener('mouseleave', onLeave);
         canvas.removeEventListener('wheel',      onWheel);
+        canvas.removeEventListener('dblclick',   onDblClick);
         window.removeEventListener('mouseup',    onMouseUp);
       };
     }, [syncAllCharts]);
