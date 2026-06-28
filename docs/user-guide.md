@@ -16,17 +16,71 @@ You can load multiple files at once to compare sessions side by side.
 
 ### Sidebar
 
-The sidebar runs down the left side and stays visible across all tabs.
+The sidebar runs down the left side and stays visible across all tabs. It can be **collapsed** by clicking the **‹** button next to "Open IBT Files", and expanded again with the **›** button on the thin strip.
 
 - **Session list** — Each loaded session appears here. The primary session (first loaded) has a green indicator. Click **✕** to unload a session.
 - **Lap list** — All laps for the selected session. Click a color slot (ref / blue / pink / lime) to assign a lap to the comparison. Hover a lap row to see a tooltip with air temp, track temp, humidity, and fuel usage. The fastest full lap is marked with **★**.
-- **Track map** — A canvas map at the bottom of the sidebar showing the track outline and driver position. Drag the top edge to resize it; double-click the top edge to reset to default height.
+- **Track map** — A canvas map at the bottom of the sidebar showing the track outline and driver position. Drag the top edge to resize it; double-click the top edge to reset to default height. Mini-map is hidden in this sidebar view.
 
 ---
 
 ## Tabs
 
 Navigation tabs appear in the title bar after loading a file.
+
+### Driving
+
+An immersive playback view for analyzing a single lap or comparing two laps side by side.
+
+#### Layout
+
+- **Center:** Track map + HUD + optional delta chart
+- **Right sidebar (Traces):** Telemetry traces panel — collapsible via the **›/‹** tab on the right edge
+- **Top-right overlay:** Sector splits panel
+- **Bottom-left overlay:** Zoom control (magnifying glass)
+- **Bottom bar:** Playback controls + distance scrubber
+
+#### Track Map
+
+The map shows track boundaries (outer/inner), driving lines for selected laps, and a moving marker that follows playback position.
+
+- **Track boundaries** are loaded automatically from `Documents/TRACE.IT/boundaries/{trackId}.json` when a file is opened. Bundled boundary files are seeded on first launch.
+- The **mini-map** (overview) appears in the top-left of the driving map.
+
+#### Playback Controls
+
+| Button | Action |
+|--------|--------|
+| ▶ / ⏸ | Play or pause |
+| 0.5× 1× 2× 4× | Set playback speed |
+| Scrubber bar | Click or drag to seek |
+
+#### Sector Panel (top-right overlay)
+
+Shows sector times for the selected lap(s). Columns: **LAP** time, **sector label**, **REF** time.
+
+- **Click a sector row** to zoom the map and traces to that sector. The scrubber is clamped to the sector range and the player **loops** within it.
+- **Click the ⏱ total row** (or **double-click anywhere in the traces**) to reset to the full lap.
+- The active sector is highlighted with a blue tint.
+
+#### Zoom Control (bottom-left overlay)
+
+Click the **magnifying glass** button to open a vertical slider that controls how tightly the map follows the driver during playback. Range: 2× – 30×. Click outside to close.
+
+#### Traces Sidebar
+
+Synchronized telemetry charts (throttle, brake, gear, RPM, speed, steering, delta, line diff) over lap distance.
+
+- **Hover** to scrub map and HUD position.
+- **Scroll** to zoom in on a distance range.
+- **Double-click** to reset zoom and clear any active sector.
+- **Collapse/expand** via the **›/‹** tab on the right edge of the panel.
+
+#### HUD
+
+Shows live telemetry values at the current playback position: throttle bar, brake bar, gear, speed (km/h, 1 decimal), and steering angle.
+
+---
 
 ### Telemetry
 
@@ -132,13 +186,24 @@ Click a color slot in the lap list to assign or deselect that lap. The **ref** s
 
 ## Track Map
 
-The track map in the sidebar shows:
+The track map shows:
 
-- The track outline drawn from the loaded lap's GPS path (with a dead-reckoning fallback if GPS data is unavailable).
+- **Track boundaries** — outer and inner limits drawn as colored lines with a filled surface between them, loaded from `Documents/TRACE.IT/boundaries/`. Boundaries are displayed even when no lap is selected.
 - **Driving lines** for up to 2 selected laps, rendered in their assigned colors.
-- A **moving marker** that follows the chart cursor position — hover on any chart to see where on track that data point corresponds.
+- A **moving marker** that follows the current playback/cursor position.
+- A **mini-map** overview (Driving tab only) showing the full track with a position dot.
 
 The **TelemetryBar** above the map shows live values at the current cursor position: throttle, brake, gear, speed, and steering angle.
+
+---
+
+## Track Boundaries
+
+TRACE.IT can display inner and outer track limits on the map.
+
+- Boundary files live in `Documents/TRACE.IT/boundaries/` as `{trackId}.json`.
+- Bundled boundary files are automatically copied to that folder on first launch.
+- Additional boundaries can be recorded with the **TRACE.IT Boundary Tool** (separate Python utility) and saved there.
 
 ---
 
@@ -147,6 +212,7 @@ The **TelemetryBar** above the map shows live values at the current cursor posit
 | Action | How |
 |--------|-----|
 | Load files | "Open IBT Files" button or drag .ibt files onto the app |
+| Collapse/expand sidebar | Click **‹** / **›** button in the sidebar header |
 | Assign lap to comparison | Click a color slot (ref / blue / pink / lime) in the lap list |
 | Show/hide a telemetry channel | Click the channel button above the Telemetry charts |
 | Zoom chart | Scroll wheel (or pinch on trackpad) |
@@ -154,11 +220,17 @@ The **TelemetryBar** above the map shows live values at the current cursor posit
 | Lock cursor position | Click on any chart |
 | Reset zoom & pan | Double-click any chart |
 | Resize a chart panel | Drag the horizontal divider between panels |
-| Resize track map | Drag the top edge of the map |
+| Resize track map (sidebar) | Drag the top edge of the map |
 | Reset map height | Double-click the top edge of the map |
 | View lap info | Hover a lap row in the sidebar |
 | Remove a session | Click ✕ in the session list |
-| Open changelog | Click the version badge (e.g. v0.0.17) in the title bar |
+| Open changelog | Click the version badge (e.g. v0.12.0) in the title bar |
+| Play/pause (Driving tab) | Click ▶ / ⏸ in the bottom bar |
+| Seek playback position | Click or drag the scrubber bar |
+| Zoom map follow level | Click 🔍 bottom-left of map, drag vertical slider |
+| Select sector | Click a sector row in the splits panel |
+| Reset to full lap | Click ⏱ total row, or double-click the traces |
+| Collapse/expand traces | Click the **›/‹** tab on the right edge |
 
 ---
 
@@ -168,4 +240,4 @@ The **TelemetryBar** above the map shows live values at the current cursor posit
 - The **primary session** (green indicator) is used for the track map and all single-session views. Additional sessions are only used in the Car Setup comparison.
 - The **Time Delta** and **Driving Line Diff** channels require a lap in the **ref** slot.
 - The track map requires at least one valid full lap (laps below ~50% of the median lap time are filtered out as out-laps/cool-down laps).
-- IBT files are parsed entirely in memory — no files are written to disk.
+- IBT files are parsed entirely in memory — no files are written to disk (except boundary seeding on first launch).
