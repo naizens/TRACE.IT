@@ -1,5 +1,7 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import type { RefObject } from 'react';
+import { MagnifyingGlassPlusIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/16/solid';
 import { useStore } from '../../store/useStore';
 import { getLapColor, COLOR_ORDER } from '../../lib/constants';
 import { useTrackMapUpdate } from '../../hooks/useTrackMapUpdate';
@@ -31,20 +33,23 @@ export function DrivingView({ trackMapRef }: Props) {
   const splitsPanelRef  = useRef<SplitsPanelHandle>(null);
   const onMapUpdate     = useTrackMapUpdate(trackMapRef, drivingHudRef);
 
-  const [activeSectorIdx, setActiveSectorIdx] = useState<number | null>(null);
-  const [mapFocus,        setMapFocus]        = useState(() => localStorage.getItem('drivingMapFocus') === 'true');
-  const [followZoom,      setFollowZoom]      = useState(() => { const v = localStorage.getItem('drivingFollowZoom'); return v !== null ? Number(v) : 7; });
+  const [activeSectorIdx,  setActiveSectorIdx]  = useState<number | null>(null);
+  const [followZoom,       setFollowZoom]       = useState(() => { const v = localStorage.getItem('drivingFollowZoom'); return v !== null ? Number(v) : 7; });
+  const [zoomOpen,         setZoomOpen]         = useState(false);
+  const tracesWidth = 700;
+  const [tracesCollapsed,  setTracesCollapsed]  = useState(false);
 
   // ── Playback ──────────────────────────────────────────────────────────────
   const [isPlaying,     setIsPlaying]     = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const playbackSpeedRef  = useRef(1);
-  playbackSpeedRef.current = playbackSpeed;
-  const totalLapTimeRef   = useRef(0);
-  const playRafRef        = useRef<number | null>(null);
-  const playPosRef        = useRef(0);
-  const playLastTimeRef   = useRef<number | null>(null);
-  const isPlayingRef      = useRef(false);
+  const playbackSpeedRef    = useRef(1);
+  playbackSpeedRef.current  = playbackSpeed;
+  const totalLapTimeRef     = useRef(0);
+  const playRafRef          = useRef<number | null>(null);
+  const playPosRef          = useRef(0);
+  const playLastTimeRef     = useRef<number | null>(null);
+  const isPlayingRef        = useRef(false);
+  const activeSectorRangeRef = useRef<{ start: number; end: number } | null>(null);
 
   // ── Track laps + delta data from selections ───────────────────────────────
   const { trackLaps, deltaData, maxDist, refColor, cmpColor, totalLapTime } = useMemo<{
@@ -128,6 +133,18 @@ export function DrivingView({ trackMapRef }: Props) {
     };
   }, [sessions, selections, session]);
 
+  const zoomPanelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (zoomPanelRef.current && !zoomPanelRef.current.contains(e.target as Node)) {
+        setZoomOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [zoomOpen]);
+
   // ── Scrubbing (shared between sector bar, delta chart, bottom scrubber) ───
   const scrubberRef      = useRef<HTMLDivElement>(null);
   const deltaBarRef      = useRef<HTMLDivElement>(null);
@@ -140,7 +157,10 @@ export function DrivingView({ trackMapRef }: Props) {
   totalLapTimeRef.current = totalLapTime;
 
   const scrubByPct = useCallback((pct: number) => {
-    const clamped = Math.max(0, Math.min(1, pct));
+    const range   = activeSectorRangeRef.current;
+    const lo      = range ? range.start : 0;
+    const hi      = range ? range.end   : 1;
+    const clamped = Math.max(lo, Math.min(hi, pct));
     playPosRef.current = clamped;
     if (playheadRef.current)      playheadRef.current.style.left      = `${clamped * 100}%`;
     if (deltaPlayheadRef.current) deltaPlayheadRef.current.style.left = `${clamped * 100}%`;
@@ -166,7 +186,10 @@ export function DrivingView({ trackMapRef }: Props) {
   const startPlayback = useCallback(() => {
     if (isPlayingRef.current) return;
     if (totalLapTimeRef.current <= 0) return;
-    if (playPosRef.current >= 1) playPosRef.current = 0;
+    const range    = activeSectorRangeRef.current;
+    const startBnd = range ? range.start : 0;
+    const endBnd   = range ? range.end   : 1;
+    if (playPosRef.current >= endBnd) playPosRef.current = startBnd;
     isPlayingRef.current = true;
     setIsPlaying(true);
     playLastTimeRef.current = null;
@@ -176,7 +199,19 @@ export function DrivingView({ trackMapRef }: Props) {
       if (playLastTimeRef.current !== null) {
         const dt     = (now - playLastTimeRef.current) / 1000;
         const newPos = playPosRef.current + (dt * playbackSpeedRef.current) / totalLapTimeRef.current;
-        if (newPos >= 1) {
+        const sRange  = activeSectorRangeRef.current;
+        const sBnd    = sRange ? sRange.start : 0;
+        const eBnd    = sRange ? sRange.end   : 1;
+        if (newPos >= eBnd) {
+          if (sRange) {
+            // Loop back to sector start
+            scrubByPct(sBnd);
+            tracesRef.current?.syncHover(sBnd * maxDistRef.current);
+            deltaChartRef.current?.syncHover(sBnd * maxDistRef.current);
+            playLastTimeRef.current = now;
+            playRafRef.current = requestAnimationFrame(tick);
+            return;
+          }
           scrubByPct(1);
           tracesRef.current?.syncHover(maxDistRef.current);
           deltaChartRef.current?.syncHover(maxDistRef.current);
@@ -239,17 +274,75 @@ export function DrivingView({ trackMapRef }: Props) {
   // ── Empty state ───────────────────────────────────────────────────────────
   if (!session) return null;
 
+
+  const sectorClickProps = {
+    onSectorClick: (i: number, start: number, end: number, md: number) => {
+      activeSectorRangeRef.current = { start, end };
+      setActiveSectorIdx(i);
+      splitsPanelRef.current?.setActiveSector(i);
+      scrubByPct(start);
+      trackMapRef.current?.zoomToSector(start, end);
+      const startDist = start * md;
+      tracesRef.current?.setXRange(startDist, end * md);
+      tracesRef.current?.syncHover(startDist);
+      deltaChartRef.current?.syncHover(startDist);
+    },
+    onFullLap: () => {
+      activeSectorRangeRef.current = null;
+      setActiveSectorIdx(null);
+      splitsPanelRef.current?.setActiveSector(null);
+      trackMapRef.current?.resetZoom();
+      tracesRef.current?.resetXRange();
+    },
+  };
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
 
-    {/* ── Main row: track map + HUD ──────────────────────────────────────────── */}
-    <div className="flex flex-1 overflow-hidden min-h-0">
+    {/* ── Main row ──────────────────────────────────────────────────────────── */}
+    <div className="relative flex flex-1 overflow-hidden min-h-0">
 
-      {/* ── Left column: track map + delta chart ──────────────────────────── */}
-      <div className="flex flex-col overflow-hidden min-h-0" style={{ width: mapFocus ? '100%' : '52%' }}>
+      {/* ── Center: track map + HUD + delta ───────────────────────────────── */}
+      <div className="flex flex-col flex-1 overflow-hidden min-h-0 min-w-0">
 
         {/* Track map */}
         <div className="relative flex-1 overflow-hidden">
+
+          {/* Zoom lupe — bottom-left */}
+          <div ref={zoomPanelRef} className="absolute bottom-2 left-2 z-20 flex flex-col items-center gap-1 select-none">
+            {zoomOpen && (
+              <div
+                className="flex flex-col items-center gap-2 rounded-lg px-3 py-3 w-12"
+                style={{ backgroundColor: 'rgba(9,9,11,0.82)', backdropFilter: 'blur(6px)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-[11px] font-bold tabular-nums" style={{ color: 'var(--color-accent)' }}>
+                  {followZoom}×
+                </span>
+                <input
+                  type="range" min={2} max={30} step={0.5}
+                  value={followZoom}
+                  style={{ writingMode: 'vertical-lr', direction: 'rtl', height: 120, cursor: 'pointer', accentColor: 'var(--color-accent)' }}
+                  onChange={(e) => {
+                    const z = Number(e.target.value);
+                    setFollowZoom(z);
+                    localStorage.setItem('drivingFollowZoom', String(z));
+                    trackMapRef.current?.setFollowZoom(z);
+                  }}
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              title={`Follow zoom: ${followZoom}×`}
+              className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors cursor-pointer"
+              style={{ backgroundColor: 'rgba(9,9,11,0.82)', backdropFilter: 'blur(6px)', color: zoomOpen ? 'var(--color-accent)' : 'var(--color-muted)' }}
+              onMouseDown={(e) => { e.stopPropagation(); setZoomOpen((v) => !v); }}
+            >
+              <MagnifyingGlassPlusIcon className="w-4 h-4" />
+            </button>
+          </div>
+
           <TrackMap
             ref={trackMapRef}
             session={session}
@@ -258,38 +351,19 @@ export function DrivingView({ trackMapRef }: Props) {
             telemetryRef={hudRef}
             boundaries={boundaries}
           />
-          {/* Splits overlay — only in map focus mode */}
-          {mapFocus && (
-            <div className="absolute top-2 right-2 z-20 rounded-lg overflow-hidden border border-border" style={{ backgroundColor: 'rgba(9,9,11,0.82)', backdropFilter: 'blur(6px)', minWidth: 200 }}>
-              <SplitsPanel
-                ref={splitsPanelRef}
-                onSectorClick={(i, start, end, md) => {
-                  setActiveSectorIdx(i);
-                  splitsPanelRef.current?.setActiveSector(i);
-                  scrubByPct(start);
-                  trackMapRef.current?.zoomToSector(start, end);
-                  const startDist = start * md;
-                  tracesRef.current?.setXRange(startDist, end * md);
-                  tracesRef.current?.syncHover(startDist);
-                  deltaChartRef.current?.syncHover(startDist);
-                }}
-                onFullLap={() => {
-                  setActiveSectorIdx(null);
-                  splitsPanelRef.current?.setActiveSector(null);
-                  trackMapRef.current?.resetZoom();
-                  tracesRef.current?.resetXRange();
-                }}
-              />
-            </div>
-          )}
+
+          {/* Splits overlay — top-right */}
+          <div className="absolute top-2 right-2 z-20 rounded-lg overflow-hidden" style={{ backgroundColor: 'rgba(9,9,11,0.82)', backdropFilter: 'blur(6px)', minWidth: 260 }}>
+            <SplitsPanel ref={splitsPanelRef} {...sectorClickProps} />
+          </div>
         </div>
 
-        {/* HUD — between track map and delta chart */}
+        {/* HUD */}
         <div className="shrink-0 border-t border-border bg-surface select-none">
           <DrivingHUD ref={drivingHudRef} />
         </div>
 
-        {/* Delta chart (below HUD, only when 2 laps selected) */}
+        {/* Delta chart */}
         {deltaData && (
           <div
             ref={deltaBarRef}
@@ -319,50 +393,56 @@ export function DrivingView({ trackMapRef }: Props) {
         )}
       </div>
 
-      {/* ── Right: splits + driving traces ──────────────────────────────────── */}
-      <div className="flex flex-col overflow-hidden min-h-0 border-l border-border" style={{ width: '48%', display: mapFocus ? 'none' : 'flex' }}>
-
-        {!mapFocus && (
-          <SplitsPanel
-            ref={splitsPanelRef}
-            onSectorClick={(i, start, end, md) => {
-              setActiveSectorIdx(i);
-              splitsPanelRef.current?.setActiveSector(i);
-              scrubByPct(start);
-              trackMapRef.current?.zoomToSector(start, end);
-              const startDist = start * md;
-              tracesRef.current?.setXRange(startDist, end * md);
-              tracesRef.current?.syncHover(startDist);
-              deltaChartRef.current?.syncHover(startDist);
-            }}
-            onFullLap={() => {
-              setActiveSectorIdx(null);
-              splitsPanelRef.current?.setActiveSector(null);
-              trackMapRef.current?.resetZoom();
-              tracesRef.current?.resetXRange();
-            }}
-          />
-        )}
-
-        {/* Telemetry traces */}
-        <div className="flex flex-1 overflow-hidden min-h-0">
-          <DrivingTraces
-            ref={tracesRef}
-            sessions={sessions}
-            selections={selections}
-            onDistHover={(dist) => {
-              scrubByPct(dist / maxDistRef.current);
-              onMapUpdate(dist);
-              deltaChartRef.current?.syncHover(dist);
-            }}
-            onZoom={() => {
-              setActiveSectorIdx(null);
-              splitsPanelRef.current?.setActiveSector(-1);
-            }}
-          />
+      {/* ── Right sidebar: traces (animated) ─────────────────────────────── */}
+      <div
+        className="shrink-0 overflow-hidden flex flex-col min-h-0"
+        style={{
+          width: tracesCollapsed ? 0 : tracesWidth,
+          borderLeft: tracesCollapsed ? 'none' : '1px solid var(--color-border)',
+          transition: 'width 280ms cubic-bezier(0.4,0,0.2,1)',
+        }}
+      >
+        {/* Inner fixed-width container so content doesn't reflow during animation */}
+        <div className="flex flex-col flex-1 overflow-hidden min-h-0" style={{ width: tracesWidth }}>
+          {/* Traces */}
+          <div className="flex flex-1 overflow-hidden min-h-0">
+            <DrivingTraces
+              ref={tracesRef}
+              sessions={sessions}
+              selections={selections}
+              onDistHover={(dist) => {
+                scrubByPct(dist / maxDistRef.current);
+                onMapUpdate(dist);
+                deltaChartRef.current?.syncHover(dist);
+              }}
+              onZoom={() => {
+                setActiveSectorIdx(null);
+                splitsPanelRef.current?.setActiveSector(-1);
+              }}
+            />
+          </div>
         </div>
-
       </div>
+
+      {/* Toggle tab — floats at the boundary, centered vertically */}
+      <button
+        type="button"
+        title={tracesCollapsed ? 'Show traces' : 'Hide traces'}
+        className="absolute top-1/2 -translate-y-1/2 z-20 flex items-center justify-center cursor-pointer group"
+        style={{
+          right: tracesCollapsed ? 0 : tracesWidth,
+          transition: 'right 280ms cubic-bezier(0.4,0,0.2,1)',
+        }}
+        onClick={() => setTracesCollapsed((v) => !v)}
+      >
+        <div
+          className="w-4 h-10 flex items-center justify-center rounded-l-md bg-surface-2 border border-r-0 border-border group-hover:border-accent/40 group-hover:bg-surface transition-colors"
+        >
+          {tracesCollapsed
+            ? <ChevronLeftIcon className="w-3 h-3 text-muted group-hover:text-text transition-colors" />
+            : <ChevronRightIcon className="w-3 h-3 text-muted group-hover:text-text transition-colors" />}
+        </div>
+      </button>
 
     </div>
 
@@ -379,27 +459,6 @@ export function DrivingView({ trackMapRef }: Props) {
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
-          <button
-            type="button"
-            title={mapFocus ? 'Show traces' : 'Map focus'}
-            className="w-6 h-5 flex items-center justify-center rounded text-[11px] hover:bg-white/10 transition-colors cursor-pointer"
-            style={{ color: mapFocus ? 'var(--color-accent)' : 'var(--color-muted)' }}
-            onMouseDown={(e) => { e.stopPropagation(); setMapFocus((v) => { localStorage.setItem('drivingMapFocus', String(!v)); return !v; }); }}
-          >
-            ⊞
-          </button>
-          <input
-            type="range" min={2} max={20} step={0.5}
-            value={followZoom}
-            title={`Follow zoom: ${followZoom}×`}
-            className="w-16 h-1 accent-accent cursor-pointer"
-            onChange={(e) => {
-              const z = Number(e.target.value);
-              setFollowZoom(z);
-              localStorage.setItem('drivingFollowZoom', String(z));
-              trackMapRef.current?.setFollowZoom(z);
-            }}
-          />
           {([0.5, 1, 2, 4] as const).map((spd) => (
             <button
               key={spd}

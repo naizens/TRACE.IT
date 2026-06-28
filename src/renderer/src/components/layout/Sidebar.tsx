@@ -6,8 +6,8 @@ import { SessionList } from '../../features/sessions/SessionList';
 import { LapList } from '../../features/sessions/LapList';
 import { TrackMap, TelemetryBar, type TrackMapHandle, type TelemetryBarHandle, type LapEntry } from '../../features/trackmap';
 import { ArrowUpTrayIcon } from '@heroicons/react/16/solid';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/16/solid';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
-import { SectorGapsPanel } from '../../features/driving/SectorGapsPanel';
 
 const MIN_WIDTH  = 200;
 const MAX_WIDTH  = 520;
@@ -27,8 +27,9 @@ export function Sidebar({ trackMapRef }: Props) {
   const activeTab    = useStore((s) => s.activeTab);
   const session      = sessions[0] ?? null;
   const telemetryRef = useRef<TelemetryBarHandle>(null);
-  const [width, setWidth]       = useState(260);
+  const [width, setWidth]         = useState(260);
   const [mapHeight, setMapHeight] = useState(192);
+  const [collapsed, setCollapsed] = useState(false);
 
   // True only when the session has at least one genuine full lap.
   const hasFullLap = useMemo(() => {
@@ -104,19 +105,44 @@ export function Sidebar({ trackMapRef }: Props) {
     window.addEventListener('mouseup',   onMouseUp);
   }
 
+  if (collapsed) {
+    return (
+      <div className="relative shrink-0 w-8 bg-surface border-r border-border flex flex-col items-center pt-2">
+        <button
+          type="button"
+          title="Expand sidebar"
+          className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-text hover:bg-white/10 transition-colors cursor-pointer"
+          onClick={() => setCollapsed(false)}
+        >
+          <ChevronRightIcon className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="relative shrink-0" style={{ width }}>
       <aside className="w-full h-full bg-surface border-r border-border flex flex-col p-3 overflow-hidden">
-        {/* Open button */}
-        <Button
-          variant="accent"
-          size="sm"
-          onClick={handleOpenFiles}
-          className="w-full mb-3 uppercase tracking-widest"
-        >
-          <ArrowUpTrayIcon className="w-3 h-3" />
-          Open IBT Files
-        </Button>
+        {/* Open button + collapse toggle */}
+        <div className="flex gap-1.5 mb-3">
+          <Button
+            variant="accent"
+            size="sm"
+            onClick={handleOpenFiles}
+            className="flex-1 uppercase tracking-widest"
+          >
+            <ArrowUpTrayIcon className="w-3 h-3" />
+            Open IBT Files
+          </Button>
+          <button
+            type="button"
+            title="Collapse sidebar"
+            className="shrink-0 w-7 flex items-center justify-center rounded text-muted hover:text-text hover:bg-white/10 transition-colors cursor-pointer border border-border"
+            onClick={() => setCollapsed(true)}
+          >
+            <ChevronLeftIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         {/* Divider */}
         <div className="border-t border-border mb-3" />
@@ -126,9 +152,6 @@ export function Sidebar({ trackMapRef }: Props) {
 
         {/* Lap list — scrollable, takes remaining space */}
         <LapList />
-
-        {/* Sector gaps — only on Driving tab */}
-        {activeTab === 'driving' && <SectorGapsPanel />}
 
         {/* Track map — pinned to sidebar bottom, hidden on Driving tab (has its own map) */}
         {hasFullLap && activeTab !== 'driving' && (
@@ -147,7 +170,7 @@ export function Sidebar({ trackMapRef }: Props) {
               className="relative mt-1.5 shrink-0 bg-surface-2 border border-border rounded overflow-hidden"
               style={{ height: mapHeight }}
             >
-              <TrackMap ref={trackMapRef} session={session} trackLaps={trackLaps} telemetryRef={telemetryRef} boundaries={boundaries} />
+              <TrackMap ref={trackMapRef} session={session} trackLaps={trackLaps} telemetryRef={telemetryRef} boundaries={boundaries} showMiniMap={false} />
               <div
                 className="absolute top-0 inset-x-0 h-4 z-10 cursor-ns-resize group"
                 onMouseDown={(e) => {

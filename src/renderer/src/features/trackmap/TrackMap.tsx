@@ -61,6 +61,7 @@ interface Props {
   trackLaps?:    LapEntry[];
   deltaData?:    DeltaData;
   boundaries?:   TrackBoundaries | null;
+  showMiniMap?:  boolean;
 }
 
 function interpTrack(t: TrackData, dist: number): [number, number] {
@@ -76,7 +77,7 @@ function interpTrack(t: TrackData, dist: number): [number, number] {
   return [t.xs[prev] + (t.xs[lo] - t.xs[prev]) * frac, t.ys[prev] + (t.ys[lo] - t.ys[prev]) * frac];
 }
 
-export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryRef, trackLaps, deltaData, boundaries }, ref) => {
+export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryRef, trackLaps, deltaData, boundaries, showMiniMap = true }, ref) => {
   const canvasRef      = useRef<HTMLCanvasElement>(null);
   const tracksRef      = useRef<TrackData[]>([]);
   const markerRef      = useRef<number | undefined>(undefined);
@@ -777,11 +778,13 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
   return (
     <>
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-      <canvas
-        ref={miniCanvasRef}
-        className="absolute top-2 left-2 z-10 pointer-events-none"
-        style={{ width: 240, height: 175 }}
-      />
+      {showMiniMap && (
+        <canvas
+          ref={miniCanvasRef}
+          className="absolute top-2 left-2 z-10 pointer-events-none"
+          style={{ width: 240, height: 175 }}
+        />
+      )}
     </>
   );
 });
