@@ -8,6 +8,19 @@ export interface Entry {
 
 export const CHANGELOG: Entry[] = [
   {
+    version: '0.13.0',
+    date: '2026-07-03',
+    changes: [
+      { type: 'feat',     text: 'Driving tab — full-lap traces, delta chart, splits panel, driving HUD, track boundaries overlay, sector playback lock, zoom, and collapsible sidebar' },
+      { type: 'feat',     text: 'Car Setup diagram view — visual GT3 layout comparing REF/LAP setups per corner, axle, electronics, brakes, and dampers, with schema fallbacks across McLaren, Ferrari, BMW, Porsche, Mercedes, Lamborghini, Audi, Acura, Mustang, and Corvette GT3s' },
+      { type: 'feat',     text: 'Session Stats panel — average lap time and fuel used per lap, excluding pit laps' },
+      { type: 'fix',      text: 'Fastest-lap and valid-lap detection now uses a pace-cluster algorithm instead of a median heuristic — fixes false "fastest lap" picks on sessions combined from multiple IBT segments' },
+      { type: 'fix',      text: 'Track map follow-zoom now applies immediately instead of waiting for the next telemetry update' },
+      { type: 'perf',     text: 'Track map static-layer cache no longer rebuilds every frame during playback/scrubbing — reduces CPU usage significantly' },
+      { type: 'refactor', text: 'Lap comparison palette simplified to green/red (2 slots), consistent across Telemetry, Driving, and Setup tabs' },
+    ],
+  },
+  {
     version: '0.12.0',
     date: '2026-06-15',
     changes: [
