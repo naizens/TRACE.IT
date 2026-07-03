@@ -16,6 +16,8 @@ export interface SessionMeta {
   humidity_pct: number | null;
   sectors: number[];
   track_id: number | null;
+  driver_name: string | null;
+  setup_name: string | null;
 }
 
 export interface ParsedSession {

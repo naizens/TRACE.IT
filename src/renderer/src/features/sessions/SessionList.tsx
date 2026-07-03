@@ -23,12 +23,20 @@ export function SessionList() {
               style={{ background: i === 0 ? '#00ff88' : '#52525b' }}
             />
             <span
-              className="flex-1 truncate font-mono text-[9px]"
+              className="flex-1 truncate font-mono text-[9px] min-w-0"
               style={{ color: i === 0 ? 'var(--color-text)' : 'var(--color-muted)' }}
               title={session._filename}
             >
               {session._filename}
             </span>
+            {session.meta.driver_name && (
+              <span
+                className="shrink-0 font-mono text-[9px] text-muted"
+                title={session.meta.driver_name}
+              >
+                {session.meta.driver_name}
+              </span>
+            )}
             <button
               onClick={() => removeSession(i)}
               className="text-muted hover:text-red-500 transition-colors text-[11px] leading-none cursor-pointer"

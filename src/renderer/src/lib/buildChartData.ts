@@ -128,22 +128,29 @@ export function buildChartData(
     const resample = (arr: ArrayLike<number>, mult = 1) =>
       axis.map((x) => ({ x: Math.round(x), y: interpolate(lap.dist, arr, x) * mult }));
 
-    ds.thr.push({ ...style, data: resample(lap.thr, 100) });
+    // Single-lap display channels: pass every raw sample (no resampling/interpolation) —
+    // Chart.js decimation (parsing: false + normalized: true) reduces to screen resolution
+    // at draw time instead, so no fidelity is thrown away up front.
+    const raw = (arr: ArrayLike<number>, mult = 1) =>
+      Array.from(lap.dist, (x, i) => ({ x, y: arr[i] * mult }));
+
+    ds.thr.push({ ...style, normalized: true, data: raw(lap.thr, 100) });
 
     // Brake trace (light) + ABS cut as separate darker line — mirrors reference app
-    ds.brk.push({ ...style, fill: false, data: resample(lap.brk, 100) });
+    ds.brk.push({ ...style, normalized: true, fill: false, data: raw(lap.brk, 100) });
     const lapColor = getLapColor(lap.color);
     ds.brk.push({
       ...style,
+      normalized: true,
       borderColor: darken(lapColor, 0.45),
       label: `${label} ABS`,
       fill: false,
-      data: resample(lap.abscut, 100),
+      data: raw(lap.abscut, 100),
     });
-    ds.spd.push({ ...style, data: resample(lap.spd, 3.6) });
-    ds.str.push({ ...style, data: resample(lap.str) });
-    ds.gear.push({ ...style, stepped: 'before', tension: 0, data: resample(lap.gear) });
-    ds.rpm.push({ ...style, data: resample(lap.rpm) });
+    ds.spd.push({ ...style, normalized: true, data: raw(lap.spd, 3.6) });
+    ds.str.push({ ...style, normalized: true, data: raw(lap.str) });
+    ds.gear.push({ ...style, normalized: true, stepped: 'before', tension: 0, data: raw(lap.gear) });
+    ds.rpm.push({ ...style, normalized: true, data: raw(lap.rpm) });
 
     if (ref && lap !== ref) {
       // Reference lap zero-line for delta (added once)

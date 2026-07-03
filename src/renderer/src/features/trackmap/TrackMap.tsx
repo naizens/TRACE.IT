@@ -88,6 +88,13 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
   // and only rebuilt when tracks/delta/view/size change, not on every marker update.
   const offscreenRef   = useRef<HTMLCanvasElement | null>(null);
   const staticDirtyRef = useRef(true);
+  // Offscreen is baked with a pixel margin around the viewport so that pure
+  // camera panning (follow mode during playback/scrubbing) can be served by a
+  // cheap drawImage translate instead of re-stroking the whole track every frame.
+  // Only re-baked when zoom changes or the pan drifts past the margin.
+  const bakedOffsetXRef = useRef<number | null>(null);
+  const bakedOffsetYRef = useRef<number | null>(null);
+  const bakedZoomRef    = useRef<number | null>(null);
   const bgColorRef     = useRef('');
   const bboxRef        = useRef<{ minX: number; maxX: number; minY: number; maxY: number } | null>(null);
   const followRef      = useRef(true);
@@ -271,12 +278,25 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
     }
 
     // ── Rebuild offscreen static layer only when dirty ────────────────────────
-    if (staticDirtyRef.current || !offscreenRef.current) {
+    // Baked with MARGIN px of slack around the viewport so pure camera panning
+    // (follow mode) can reuse the bake via a cheap translated blit — only an
+    // actual zoom change or a pan drift past the margin forces a full re-stroke.
+    const MARGIN = 320;
+    const panDrift =
+      bakedOffsetXRef.current === null ||
+      Math.abs(offsetX - bakedOffsetXRef.current) > MARGIN - 8 ||
+      Math.abs(offsetY - bakedOffsetYRef.current!) > MARGIN - 8;
+    const zoomChanged = bakedZoomRef.current !== zoom;
+
+    if (staticDirtyRef.current || !offscreenRef.current || panDrift || zoomChanged) {
       let os = offscreenRef.current;
       if (!os) { os = document.createElement('canvas'); offscreenRef.current = os; }
-      os.width  = W;
-      os.height = H;
+      os.width  = W + MARGIN * 2;
+      os.height = H + MARGIN * 2;
       staticDirtyRef.current = false;
+      bakedOffsetXRef.current = offsetX;
+      bakedOffsetYRef.current = offsetY;
+      bakedZoomRef.current    = zoom;
 
       const oc = os.getContext('2d')!;
 
@@ -285,11 +305,11 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
           .getPropertyValue('--color-surface-2').trim() || '#1c1c1f';
       }
       oc.fillStyle = bgColorRef.current;
-      oc.fillRect(0, 0, W, H);
+      oc.fillRect(0, 0, os.width, os.height);
 
       if (bbox) {
         oc.save();
-        oc.translate(offsetX, offsetY);
+        oc.translate(offsetX + MARGIN, offsetY + MARGIN);
         oc.scale(zoom, zoom);
 
         const strokeSmooth = (xs: number[], ys: number[]) => {
@@ -398,8 +418,11 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
       }
     }
 
-    // Blit static layer — O(1) GPU copy
-    ctx.drawImage(offscreenRef.current!, 0, 0);
+    // Blit static layer — O(1) GPU copy, shifted by however far the camera has
+    // panned since this bake (within MARGIN, otherwise a rebake already ran above).
+    const blitDx = offsetX - bakedOffsetXRef.current! - MARGIN;
+    const blitDy = offsetY - bakedOffsetYRef.current! - MARGIN;
+    ctx.drawImage(offscreenRef.current!, blitDx, blitDy);
 
     if (!tracks.length || !bbox) return; // markers + mini-map require tracks
 
@@ -622,7 +645,8 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
           viewRef.current.scale   = fz;
           viewRef.current.offsetX = W / 2 - mBx * fz;
           viewRef.current.offsetY = H / 2 - mBy * fz;
-          staticDirtyRef.current  = true;
+          // No forced staticDirtyRef here — redraw()'s margin/drift check decides
+          // whether this pan can reuse the existing bake (the common case at 60fps).
         }
       }
 
@@ -771,6 +795,30 @@ export const TrackMap = forwardRef<TrackMapHandle, Props>(({ session, telemetryR
 
     setFollowZoom(zoom: number) {
       followZoomRef.current = zoom;
+
+      if (followRef.current && markerRef.current !== undefined) {
+        const canvas = canvasRef.current;
+        const bbox   = bboxRef.current;
+        const tracks = tracksRef.current;
+        if (canvas && bbox && tracks.length > 0) {
+          const W = canvas.width || canvas.clientWidth;
+          const H = canvas.height || canvas.clientHeight;
+          const pad    = 16;
+          const trackW = (bbox.maxX - bbox.minX) || 1;
+          const trackH = (bbox.maxY - bbox.minY) || 1;
+          const base   = Math.min((W - pad * 2) / trackW, (H - pad * 2) / trackH);
+          const offX   = (W - trackW * base) / 2;
+          const offY   = (H - trackH * base) / 2;
+          const [ix, iy] = interpTrack(tracks[0], markerRef.current);
+          const mBx = offX + (ix - bbox.minX) * base;
+          const mBy = H - offY - (iy - bbox.minY) * base;
+          viewRef.current.scale   = zoom;
+          viewRef.current.offsetX = W / 2 - mBx * zoom;
+          viewRef.current.offsetY = H / 2 - mBy * zoom;
+          staticDirtyRef.current  = true;
+          redraw(markerRef.current);
+        }
+      }
     },
   }), [redraw, telemetryRef]);
 

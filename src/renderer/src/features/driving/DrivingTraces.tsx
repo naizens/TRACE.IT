@@ -3,6 +3,8 @@ import { Line } from 'react-chartjs-2';
 import type { ChartOptions, Chart } from 'chart.js';
 import type { ParsedSession, LapSelections } from '../../types/session';
 import { buildChartData } from '../../lib/buildChartData';
+import { TRACE_CHANNEL_COLORS } from '../../lib/constants';
+import { darken } from '../../lib/formatters';
 
 export interface DrivingTracesHandle {
   setXRange:   (min: number, max: number) => void;
@@ -84,10 +86,23 @@ function makeBaseOptions(maxDist: number): ChartOptions<'line'> {
 
 export const DrivingTraces = forwardRef<DrivingTracesHandle, Props>(
   ({ sessions, selections, onDistHover, onZoom, onFullLap }, ref) => {
-    const { datasets, maxDist } = useMemo(
-      () => buildChartData(sessions, selections),
-      [sessions, selections],
-    );
+    const { datasets, maxDist } = useMemo(() => {
+      const built = buildChartData(sessions, selections);
+
+      // Single lap selected: color each trace by channel instead of by lap
+      // (spd=blue, thr=green, brk=red, gear=yellow, rpm=orange).
+      if (Object.keys(selections).length === 1) {
+        for (const key of Object.keys(TRACE_CHANNEL_COLORS) as (keyof typeof TRACE_CHANNEL_COLORS)[]) {
+          for (const ds of built.datasets[key]) {
+            ds.borderColor = ds.label?.endsWith(' ABS')
+              ? darken(TRACE_CHANNEL_COLORS[key], 0.45)
+              : TRACE_CHANNEL_COLORS[key];
+          }
+        }
+      }
+
+      return built;
+    }, [sessions, selections]);
 
     const onDistHoverRef = useRef(onDistHover);
     onDistHoverRef.current = onDistHover;

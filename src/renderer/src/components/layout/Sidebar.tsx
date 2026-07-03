@@ -3,11 +3,13 @@ import type { RefObject } from 'react';
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
 import { SessionList } from '../../features/sessions/SessionList';
+import { SessionStats } from '../../features/sessions/SessionStats';
 import { LapList } from '../../features/sessions/LapList';
 import { TrackMap, TelemetryBar, type TrackMapHandle, type TelemetryBarHandle, type LapEntry } from '../../features/trackmap';
 import { ArrowUpTrayIcon } from '@heroicons/react/16/solid';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/16/solid';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { findPaceCluster, isValidLapTime } from '../../lib/lapStats';
 
 const MIN_WIDTH  = 200;
 const MAX_WIDTH  = 520;
@@ -34,9 +36,8 @@ export function Sidebar({ trackMapRef }: Props) {
   // True only when the session has at least one genuine full lap.
   const hasFullLap = useMemo(() => {
     if (!session) return false;
-    const times  = session.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
-    const median = times.length > 0 ? times[Math.floor(times.length / 2)] : Infinity;
-    return times.some((t) => t >= median * 0.5);
+    const cluster = findPaceCluster(session.laps.map((l) => l.lap_time_s));
+    return session.laps.some((l) => isValidLapTime(l.lap_time_s, cluster));
   }, [session]);
 
   // One entry per selected lap (max 2, sorted slower-first so the faster lap
@@ -52,11 +53,9 @@ export function Sidebar({ trackMapRef }: Props) {
         const lIdx  = parseInt(key.substring(colon + 1));
         const sess = sessions[sIdx];
         if (sess) {
-          const lap      = sess.laps[lIdx];
-          const times    = sess.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
-          const median   = times.length > 0 ? times[Math.floor(times.length / 2)] : Infinity;
-          const minFull  = median * 0.5;
-          if (lap && lap.lap_time_s >= minFull) {
+          const lap     = sess.laps[lIdx];
+          const cluster = findPaceCluster(sess.laps.map((l) => l.lap_time_s));
+          if (lap && isValidLapTime(lap.lap_time_s, cluster)) {
             laps.push({ session: sess, lapIdx: lIdx, color: LAP_COLORS[color] });
           }
         }
@@ -149,6 +148,9 @@ export function Sidebar({ trackMapRef }: Props) {
 
         {/* Session badges */}
         <SessionList />
+
+        {/* Avg lap time / fuel per lap, excluding pit laps */}
+        <SessionStats />
 
         {/* Lap list — scrollable, takes remaining space */}
         <LapList />

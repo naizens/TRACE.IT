@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { CheckIcon } from '@heroicons/react/16/solid';
 import { useStore } from '../../store/useStore';
-import { getLapColor, COLOR_ORDER } from '../../lib/constants';
+import { getLapColor, COLOR_ORDER, LAP_COLOR_LABELS } from '../../lib/constants';
 import { formatLapTime } from '../../lib/formatters';
+import { findPaceCluster, isValidLapTime } from '../../lib/lapStats';
 import type { LapColor, ParsedSession, LapInfo } from '../../types/session';
 
 interface TooltipData {
@@ -94,12 +95,11 @@ export function LapList() {
       </p>
 
       {sessions.map((session, sessionIdx) => {
-        const lapTimes   = session.laps.map((l) => l.lap_time_s || l.duration_s);
-        const timedLaps  = session.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
-        const median     = timedLaps.length > 0 ? timedLaps[Math.floor(timedLaps.length / 2)] : Infinity;
-        const minFullLap = median * 0.5;
-        const fastest    = timedLaps
-          .filter((t) => t >= minFullLap)
+        const lapTimes = session.laps.map((l) => l.lap_time_s || l.duration_s);
+        const cluster  = findPaceCluster(session.laps.map((l) => l.lap_time_s));
+        const fastest  = session.laps
+          .map((l) => l.lap_time_s)
+          .filter((t) => isValidLapTime(t, cluster))
           .reduce((min, t) => (t < min ? t : min), Infinity);
 
         return (
@@ -117,7 +117,7 @@ export function LapList() {
 
             {session.laps.map((lap, lapIdx) => {
               const t         = lapTimes[lapIdx];
-              const isFastest = lap.lap_time_s >= minFullLap && lap.lap_time_s === fastest;
+              const isFastest = isValidLapTime(lap.lap_time_s, cluster) && lap.lap_time_s === fastest;
               const selKey    = `${sessionIdx}:${lapIdx}`;
               const activeColor = selections[selKey] as LapColor | undefined;
 
@@ -138,7 +138,7 @@ export function LapList() {
                         <button
                           key={color}
                           onClick={() => toggleLapColor(sessionIdx, lapIdx, color)}
-                          title={`Assign ${color} to Lap ${lap.lap}`}
+                          title={`Assign ${LAP_COLOR_LABELS[color]} to Lap ${lap.lap}`}
                           className="w-3.5 h-3.5 rounded-sm border cursor-pointer transition-all hover:scale-110 focus:outline-none flex items-center justify-center"
                           style={{
                             borderColor: isActive ? getLapColor(color) : 'var(--color-border)',
@@ -166,7 +166,7 @@ export function LapList() {
                       {isFastest && <span className="text-[9px] mr-0.5">★</span>}
                       {formatLapTime(t)}
                     </span>
-                    <span className="text-[9px] text-muted shrink-0">L{lap.lap}</span>
+                    <span className="text-[9px] text-muted shrink-0 tabular-nums text-right" style={{ minWidth: 24 }}>L{lap.lap}</span>
                   </div>
                 </div>
               );
