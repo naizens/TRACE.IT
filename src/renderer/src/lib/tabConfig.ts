@@ -1,6 +1,7 @@
 import type { Tab } from '../store/useStore';
 
 export const TABS_BEFORE: { id: Tab; label: string }[] = [
+  { id: 'driving',   label: 'Driving'   },
   { id: 'telemetry', label: 'Telemetry' },
   { id: 'damper',    label: 'Damper'    },
 ];

@@ -46,6 +46,8 @@ Frameless window (`frame: false`), with window bounds/maximized state persisted 
 |---------|-----------|---------|
 | `open-ibt-files` | renderer→main (handle) | File dialog → parse → `ParsedSession[]` |
 | `parse-ibt-buffers` | renderer→main (handle) | Drag-drop ArrayBuffers → parse → `ParsedSession[]` |
+| `load-boundaries` | renderer→main (handle) | Load `{trackId}.json` from boundaries dir → object or null |
+| `boundaries-dir` | renderer→main (handle) | Return/create `Documents/TRACE.IT/boundaries/` path |
 | `window:minimize/maximize/close` | renderer→main (send) | Window controls |
 | `window:is-maximized` | renderer→main (handle) | Query current state |
 | `window:maximized` | main→renderer (broadcast) | State change notifications |
@@ -53,6 +55,8 @@ Frameless window (`frame: false`), with window bounds/maximized state persisted 
 | `settings:relaunch` | renderer→main (send) | Relaunch after config change |
 | `update:downloaded` | main→renderer (broadcast) | Update ready to install |
 | `update:install` | renderer→main (send) | Call `autoUpdater.quitAndInstall()` |
+
+**Boundary seeding:** `seedBoundaries()` runs on `app.whenReady()`. It copies any `.json` files from `resources/boundaries/` (packaged) or `trackmaps/` (dev) to `Documents/TRACE.IT/boundaries/`, skipping files that already exist.
 
 **Auto-updater:** gated on `app.isPackaged`. `autoDownload: true`, `autoInstallOnAppQuit: false`. Publishes to `naizens/TRACE.IT-releases` on GitHub.
 
@@ -168,6 +172,11 @@ window.electronAPI = {
   parseIbtBuffers(files: { name: string; data: ArrayBuffer }[]): Promise<ParsedSession[] | null>
   platform: string
 
+  boundaries: {
+    load(trackId: number): Promise<unknown>   // TrackBoundaries | null
+    getDir(): Promise<string>
+  }
+
   updates: {
     onUpdateDownloaded(cb: () => void): () => void   // returns unsubscribe
     installNow(): void
@@ -204,6 +213,7 @@ Zustand 5 store. No side effects — all mutations are pure.
   sessions: ParsedSession[]
   selections: LapSelections          // "sessionIdx:lapIdx" → 'ref'|'blue'|'pink'|'lime'
   activeTab: Tab
+  boundaries: TrackBoundaries | null // loaded on IBT open, keyed by trackId
   theme: 'dark' | 'light'
 
   addSessions(incoming): void
@@ -211,9 +221,22 @@ Zustand 5 store. No side effects — all mutations are pure.
   toggleLapColor(sessionIdx, lapIdx, color): void
   clearSelections(): void
   setActiveTab(tab): void
+  setBoundaries(b): void
   setTheme(theme): void              // persists to localStorage
 }
 ```
+
+**`TrackBoundaries` type** (`src/renderer/src/types/session.ts`):
+```typescript
+interface TrackBoundaries {
+  trackId:   number;
+  trackName: string;
+  outer: [number, number][];   // [lat, lon] pairs
+  inner: [number, number][];
+}
+```
+
+Boundaries are projected to local metres on the same GPS origin used by the track map, then drawn as a filled polygon (outer forward + inner backward) with separate stroke lines.
 
 **`toggleLapColor` rules:**
 - Each color slot is exclusive — assigning a color to a new lap evicts the previous owner.
@@ -312,10 +335,17 @@ Canvas-based map with imperative API:
 ```typescript
 interface TrackMapHandle {
   updateMarker(lapDist: number, inputs?: TelemetryInputs[]): void
+  zoomToSector(start: number, end: number): void
+  resetZoom(): void
+  setFollowZoom(z: number): void
 }
 ```
 
 Called from `useTrackMapUpdate(trackMapRef)` — a hook that reads the highest-priority selected lap from Zustand and calls `updateMarker` on every chart hover.
+
+**Props:**
+- `boundaries?: TrackBoundaries | null` — draws outer/inner limits + filled surface.
+- `showMiniMap?: boolean` (default `true`) — the mini-map overview in the top-left corner. Set to `false` in the sidebar TrackMap (non-Driving views).
 
 **Track building — two paths:**
 
@@ -324,10 +354,17 @@ Called from `useTrackMapUpdate(trackMapRef)` — a hook that reads the highest-p
 
 **Multi-session GPS alignment:** all sessions use the same GPS reference point (first lap's initial Lat/Lon). This keeps cross-session driving lines in the same coordinate space.
 
-**Rendering pipeline:**
-1. Road surface: thick white stroke (8px / zoom).
-2. Driving lines: thin coloured strokes (1.5px) via quadratic Bézier curves (C1 smooth).
-3. Position markers: circles, binary-searched against `track.dists`.
+**Rendering pipeline (static offscreen layer):**
+1. Track boundaries fill (outer forward + inner backward closed polygon).
+2. Boundary outer + inner stroke lines.
+3. Road surface: thick white stroke (8px / zoom).
+4. Driving lines: thin coloured strokes (2.5px / zoom) via quadratic Bézier curves.
+
+**Dynamic layer (every frame):**
+5. Position markers: circles, binary-searched against `track.dists`.
+6. Mini-map overview (if `showMiniMap`): inner boundary reference line + position dots.
+
+**Bbox fallback:** if no lap is selected but boundaries are present, the boundary bounding box is used as the viewport (so the track shape is visible even with no lap loaded).
 
 **Zoom/pan:** wheel zoom centred on cursor (Ctrl+wheel for finer steps), drag to pan, double-click to reset. A `ResizeObserver` triggers a redraw on container resize.
 
@@ -351,6 +388,49 @@ Separate component above the map canvas. Displays throttle/brake bars, gear, spe
 **`arrayMax` / `arrayMin`:** always use these instead of `Math.max(...arr)` — spread overflows the call stack on arrays of 7 000+ elements.
 
 ---
+
+### Driving Tab — `src/renderer/src/features/driving/`
+
+The Driving tab is a self-contained playback + analysis view.
+
+#### Layout
+
+```
+┌──────────────────────────────────────┬──────────────────┐
+│  TrackMap (flex-1)                   │  DrivingTraces   │
+│  ├── Zoom lupe (bottom-left overlay) │  (right sidebar) │
+│  └── SplitsPanel (top-right overlay) │  700px fixed     │
+├──────────────────────────────────────┤  collapsible ›/‹ │
+│  DrivingHUD                          │                  │
+├──────────────────────────────────────┤                  │
+│  DeltaChart (if 2 laps selected)     │                  │
+└──────────────────────────────────────┴──────────────────┘
+│  Playback controls + distance scrubber (bottom bar)      │
+└──────────────────────────────────────────────────────────┘
+```
+
+#### Playback
+
+RAF-based loop. Position tracked as a 0–1 fraction (`playPosRef`). All updates go through `scrubByPct`, which:
+1. Clamps to `activeSectorRangeRef` (if a sector is selected).
+2. Updates playhead DOM elements directly (no React state).
+3. Calls `onMapUpdate(dist)` and `splitsPanelRef.current?.updatePosition(dist)`.
+
+**Sector lock:** when a sector is clicked in `SplitsPanel`, `activeSectorRangeRef.current` is set to `{ start, end }`. The player **loops** when it reaches `end` (jumps back to `start`). Scrubbing is clamped to the range. Double-clicking the traces or clicking ⏱ clears the range.
+
+#### SplitsPanel
+
+Purely imperative panel — no React state updates during playback. All updates go through `useImperativeHandle`:
+- `updatePosition(dist)` — highlights current sector via `box-shadow` (avoids conflict with zoom-active `backgroundColor`).
+- `setActiveSector(idx)` — blue background tint on the zoom-active row.
+
+#### DrivingTraces
+
+Synchronized charts with direct canvas event listeners (no Chart.js event system). Double-click triggers `onFullLap` prop.
+
+#### Zoom Control
+
+Vertical `<input type="range">` in a floating panel (bottom-left of map). Uses `writing-mode: vertical-lr; direction: rtl`. Click-outside closes via `document.addEventListener('mousedown', ...)` on a ref.
 
 ### Feature Utilities
 
@@ -409,7 +489,9 @@ npm run typecheck # tsc --noEmit
 - appId: `com.trace-it.app`
 - Targets: Windows NSIS, macOS DMG, Linux AppImage
 - asar: true
-- Publish: GitHub Releases (`naizens/TRACE.IT-releases`)
+- `electronDist: "node_modules/electron/dist"` — uses the locally installed Electron binary instead of downloading it, avoiding Windows Defender quarantine issues during local `dist` builds.
+- `extraResources`: bundles `trackmaps/*.json` → `resources/boundaries/` for boundary seeding.
+- Publish: GitHub Releases (`naizens/TRACE.IT`)
 
 **Release workflow** — three files must be updated on every release:
 

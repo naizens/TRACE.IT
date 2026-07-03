@@ -70,6 +70,14 @@ TRACE.IT runs entirely offline. No data is uploaded anywhere. All processing hap
 
 ---
 
+## Screenshots
+
+![Drop zone — empty state](docs/screenshots/dropzone.png)
+
+![Telemetry tab — multi-lap trace comparison](docs/screenshots/telemetry.png)
+
+---
+
 ## Installation
 
 ### For Drivers (no coding required)
@@ -169,6 +177,8 @@ Three synced panels showing ride height over lap distance:
 
 ### 🌡️ Tire Temperatures
 
+![Tire Temperatures — 2×2 corner grid](docs/screenshots/tiretemps.png)
+
 A 2×2 grid (one panel per corner) showing **Inner / Mid / Outer** surface temperatures over lap distance.
 
 The Y-axis range is adjustable — use the min/max inputs in the header to focus on the relevant temperature window for your tyre compound.
@@ -181,6 +191,8 @@ The Y-axis range is adjustable — use the min/max inputs in the header to focus
 ---
 
 ### 📊 Damper Histograms
+
+![Damper histograms — shock velocity per corner](docs/screenshots/damper.png)
 
 A **velocity histogram** per corner — how much time (as a fraction of the lap) the shock spent at each velocity bin (mm/s).
 
@@ -195,6 +207,8 @@ A **velocity histogram** per corner — how much time (as a fraction of the lap)
 ---
 
 ### 🔩 Shock Deflection
+
+![Shock deflection — front and rear with bump-rubber gap](docs/screenshots/shocks.png)
 
 Front and rear shock deflection over lap distance, with a **bump-rubber gap** reference line drawn from the car setup YAML embedded in the IBT file.
 
@@ -211,6 +225,8 @@ Use this alongside the histogram to pinpoint *where on track* high-speed events 
 ---
 
 ### 🔧 Setup Diff
+
+![Car setup — full parameter table](docs/screenshots/setup.png)
 
 A table comparing car setup values across all loaded sessions. Differences are highlighted so you can instantly see what changed between a morning and afternoon session, or between your setup and a coach's reference file.
 
@@ -244,9 +260,10 @@ TRACE.IT supports loading several `.ibt` files simultaneously:
 
 | Action | How |
 |--------|-----|
-| Zoom chart X-axis | Scroll wheel over any chart |
-| Pan while zoomed | Hold and drag left/right |
+| Pan chart X-axis | Scroll wheel over any chart |
+| Zoom chart X-axis | Ctrl + drag on any chart |
 | Reset zoom | Double-click any chart |
+| Pin / scrub cursor | Click or click-and-drag on any chart |
 | Resize chart panels | Drag the handle between panels |
 | Reset panel heights | Double-click the resize handle |
 | Assign lap colour | Click lap row in sidebar |

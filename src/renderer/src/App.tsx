@@ -3,6 +3,7 @@ import { useStore } from './store/useStore';
 import { TitleBar } from './components/layout/TitleBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { DropZone } from './components/layout/DropZone';
+import { DrivingView } from './features/driving/DrivingView';
 import { TelemetryView } from './features/telemetry/TelemetryView';
 import { SetupView } from './features/setup/SetupView';
 import { DamperView } from './features/damper/DamperView';
@@ -36,6 +37,7 @@ export function App() {
 
         {/* flex flex-col so TelemetryView's flex-1 has a proper flex context */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {activeTab === 'driving'   && <DrivingView   trackMapRef={trackMapRef} />}
           {activeTab === 'telemetry' && <TelemetryView trackMapRef={trackMapRef} />}
           {activeTab === 'setup'     && <SetupView />}
           {activeTab === 'damper'      && <DamperView />}

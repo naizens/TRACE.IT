@@ -31,7 +31,7 @@ export function createChartOptions({
 
     plugins: {
       legend: { display: false },
-      decimation: { enabled: true, algorithm: 'lttb', threshold: 500 },
+      decimation: { enabled: true, algorithm: 'lttb', threshold: 2000 },
       tooltip: {
         enabled: true,
         backgroundColor: 'rgba(9, 9, 11, 0.92)',
@@ -85,7 +85,7 @@ export function createChartOptions({
       },
       y: {
         min: fixedScale ? 0 : undefined,
-        max: fixedScale ? 105 : undefined,
+        max: fixedScale ? 100 : undefined,
         ticks: {
           color: '#52525b',
           font:  { size: 8 },

@@ -20,8 +20,8 @@
   --color-overlay-hover:        rgba(255,255,255,0.04);
 
   /* Lap comparison colours  */
-  --color-lap-ref:    #ffffff;
-  --color-lap-blue:   #38bdf8;  /* sky-400   */
+  --color-lap-ref:    #4ade80;  /* green-400 */
+  --color-lap-blue:   #f87171;  /* red-400   */
   --color-lap-pink:   #e879f9;  /* fuchsia-400 */
   --color-lap-lime:   #a3e635;  /* lime-400  */
 }

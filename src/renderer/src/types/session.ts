@@ -14,6 +14,10 @@ export interface SessionMeta {
   tick_rate_hz: number;
   sample_count: number;
   humidity_pct: number | null;
+  sectors: number[];
+  track_id: number | null;
+  driver_name: string | null;
+  setup_name: string | null;
 }
 
 export interface ParsedSession {
@@ -26,6 +30,15 @@ export interface ParsedSession {
   setup: Record<string, unknown>;
   /** Filename without extension, used as display label */
   _filename: string;
+}
+
+// ─── Track boundaries ───────────────────────────────────────────────────────
+
+export interface TrackBoundaries {
+  trackId:   number;
+  trackName: string;
+  outer: [number, number][]; // [lat, lon] knots
+  inner: [number, number][]; // [lat, lon] knots
 }
 
 // ─── Lap selection types ────────────────────────────────────────────────────

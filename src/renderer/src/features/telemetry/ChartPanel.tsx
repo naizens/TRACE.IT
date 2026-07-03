@@ -84,6 +84,7 @@ export const ChartPanel = forwardRef<ChartPanelHandle, Props>(
             options={options}
           />
         </div>
+
       </div>
     );
   },

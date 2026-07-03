@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import type { ParsedSession, LapSelections, LapColor } from '../types/session';
+import type { ParsedSession, LapSelections, LapColor, TrackBoundaries } from '../types/session';
 import { COLOR_ORDER } from '../lib/constants';
 
-export type Tab = 'telemetry' | 'setup' | 'damper' | 'rideheight' | 'tiretemp' | 'shocks' | 'shockvel';
+export type Tab = 'driving' | 'telemetry' | 'setup' | 'damper' | 'rideheight' | 'tiretemp' | 'shocks' | 'shockvel';
 export type Theme = 'dark' | 'light';
 
 interface State {
@@ -10,6 +10,7 @@ interface State {
   selections: LapSelections;
   activeTab: Tab;
   theme: Theme;
+  boundaries: TrackBoundaries | null;
 
   // Actions
   addSessions: (incoming: ParsedSession[]) => void;
@@ -18,6 +19,7 @@ interface State {
   toggleLapColor: (sessionIdx: number, lapIdx: number, color: LapColor) => void;
   clearSelections: () => void;
   setTheme: (theme: Theme) => void;
+  setBoundaries: (b: TrackBoundaries | null) => void;
 }
 
 export const useStore = create<State>((set) => ({
@@ -25,6 +27,7 @@ export const useStore = create<State>((set) => ({
   selections: {},
   activeTab: 'telemetry',
   theme: (localStorage.getItem('theme') as Theme) ?? 'dark',
+  boundaries: null,
 
   addSessions: (incoming) =>
     set((s) => ({ sessions: [...s.sessions, ...incoming], selections: {} })),
@@ -75,4 +78,6 @@ export const useStore = create<State>((set) => ({
     localStorage.setItem('theme', theme);
     set({ theme });
   },
+
+  setBoundaries: (b) => set({ boundaries: b }),
 }));

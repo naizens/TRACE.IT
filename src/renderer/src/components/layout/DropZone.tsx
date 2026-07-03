@@ -3,13 +3,21 @@ import { useStore } from '../../store/useStore';
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline';
 
 export function DropZone() {
-  const addSessions = useStore((s) => s.addSessions);
+  const addSessions   = useStore((s) => s.addSessions);
+  const setBoundaries = useStore((s) => s.setBoundaries);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
   async function handleOpenFiles() {
     const results = await window.electronAPI.openIbtFiles();
-    if (results) addSessions(results);
+    if (results) {
+      addSessions(results);
+      const trackId = results[0]?.meta?.track_id;
+      if (trackId != null) {
+        const b = await window.electronAPI.boundaries.load(trackId);
+        setBoundaries(b as import('../../types/session').TrackBoundaries | null);
+      }
+    }
   }
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -44,8 +52,15 @@ export function DropZone() {
     );
 
     const results = await window.electronAPI.parseIbtBuffers(fileData);
-    if (results) addSessions(results);
-  }, [addSessions]);
+    if (results) {
+      addSessions(results);
+      const trackId = results[0]?.meta?.track_id;
+      if (trackId != null) {
+        const b = await window.electronAPI.boundaries.load(trackId);
+        setBoundaries(b as import('../../types/session').TrackBoundaries | null);
+      }
+    }
+  }, [addSessions, setBoundaries]);
 
   return (
     <div

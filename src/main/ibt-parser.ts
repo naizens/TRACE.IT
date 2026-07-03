@@ -38,6 +38,10 @@ export interface ParsedSession {
     tick_rate_hz: number;
     sample_count: number;
     humidity_pct: number | null;
+    sectors: number[];
+    track_id: number | null;
+    driver_name: string | null;
+    setup_name: string | null;
   };
   laps: LapInfo[];
   data: Record<string, Float32Array | Float64Array>;
@@ -65,7 +69,7 @@ const NEEDED_VARS = new Set([
   'SessionTime', 'Lap', 'LapDist', 'LapDistPct', 'Throttle', 'Brake', 'BrakeABScutPct',
   'SteeringWheelAngle', 'Speed', 'LapLastLapTime', 'Gear', 'RPM',
   // Live setup data
-  'FuelLevel', 'DcBrakeBias',
+  'FuelLevel', 'dcBrakeBias',
   'LFpressure', 'RFpressure', 'LRpressure', 'RRpressure',
   'LFtempL', 'LFtempM', 'LFtempR',
   'RFtempL', 'RFtempM', 'RFtempR',
@@ -82,6 +86,8 @@ const NEEDED_VARS = new Set([
   // Weather
   'AirTemp', 'TrackTemp',
   // Driving line lateral offset uses Speed + Yaw (already extracted above)
+  // Pit detection — used to exclude in/out laps from session stats
+  'OnPitRoad',
 ]);
 
 // ─── Parser ──────────────────────────────────────────────────────────────────
@@ -102,6 +108,10 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
   // on unquoted colons in track names, multi-doc separators, etc.
   let carSetup: Record<string, unknown> = {};
   let humidityPct: number | null = null;
+  let sectors: number[] = [];
+  let trackId: number | null = null;
+  let driverName: string | null = null;
+  let setupName: string | null = null;
   try {
     const raw = buffer.subarray(sessionInfoOffset, sessionInfoOffset + sessionInfoLen);
     // Stop at first null byte; decode as latin-1 to tolerate non-UTF8 bytes
@@ -123,6 +133,40 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
     // ';' inline comments that break yaml.load, so regex is more reliable)
     const humidMatch = str.match(/RelativeHumidity:\s*(\d+(?:\.\d+)?)/);
     if (humidMatch) humidityPct = parseFloat(humidMatch[1]);
+
+    const sectorMatches = [...str.matchAll(/SectorStartPct:\s*(\d+(?:\.\d+)?)/g)];
+    sectors = sectorMatches.map((m) => parseFloat(m[1])).filter((v) => v > 0);
+
+    const trackIdMatch = str.match(/TrackID:\s*(\d+)/);
+    if (trackIdMatch) trackId = parseInt(trackIdMatch[1]);
+
+    // Driver name — regex, not yaml.load: DriverInfo (like most blocks besides
+    // CarSetup) can contain iRacing's non-standard ';' inline comments that
+    // throw inside yaml.load. Find our own car by DriverCarIdx, then read that
+    // driver's UserName from its list entry.
+    const driverCarIdxMatch = str.match(/DriverCarIdx:\s*(\d+)/);
+    const diBlockMatch      = str.match(/\n[ \t]*Drivers:\n([\s\S]*?)(?=\n\S|$)/);
+    if (driverCarIdxMatch && diBlockMatch) {
+      const driverCarIdx = driverCarIdxMatch[1];
+      const entries = diBlockMatch[1].split(/\n(?=\s*-\s*CarIdx:)/);
+      for (const entry of entries) {
+        const carIdxM = entry.match(/CarIdx:\s*(\d+)/);
+        if (carIdxM?.[1] !== driverCarIdx) continue;
+        const nameM = entry.match(/UserName:\s*(.+)/);
+        if (nameM) driverName = nameM[1].split(';')[0].trim().replace(/^"|"$/g, '');
+        break;
+      }
+    }
+
+    // Setup file name — DriverSetupName is a full path (e.g. "Garage 61 -
+    // FalkenDorr by SX\...\FLKN_26S3_JT_720s_Spa24_R0.5.sto"); keep just the
+    // filename without the .sto extension.
+    const setupNameMatch = str.match(/DriverSetupName:\s*(.+)/);
+    if (setupNameMatch) {
+      const raw          = setupNameMatch[1].split(';')[0].trim();
+      const lastSegment  = raw.split(/[\\/]/).pop() ?? raw;
+      setupName          = lastSegment.replace(/\.sto$/i, '') || null;
+    }
   } catch (err) {
     console.error('[ibt-parser] Setup YAML parse error:', (err as Error).message);
   }
@@ -272,6 +316,10 @@ export function parseIbt(buffer: Buffer, filename: string): ParsedSession {
       tick_rate_hz: tickRate,
       sample_count: numSamples,
       humidity_pct: humidityPct,
+      sectors,
+      track_id: trackId,
+      driver_name: driverName,
+      setup_name: setupName,
     },
     laps,
     data: results,

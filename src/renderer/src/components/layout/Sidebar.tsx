@@ -3,10 +3,13 @@ import type { RefObject } from 'react';
 import { useStore } from '../../store/useStore';
 import { Button } from '../ui/Button';
 import { SessionList } from '../../features/sessions/SessionList';
+import { SessionStats } from '../../features/sessions/SessionStats';
 import { LapList } from '../../features/sessions/LapList';
 import { TrackMap, TelemetryBar, type TrackMapHandle, type TelemetryBarHandle, type LapEntry } from '../../features/trackmap';
 import { ArrowUpTrayIcon } from '@heroicons/react/16/solid';
+import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/16/solid';
 import { LAP_COLORS, COLOR_ORDER } from '../../lib/constants';
+import { findPaceCluster, isValidLapTime } from '../../lib/lapStats';
 
 const MIN_WIDTH  = 200;
 const MAX_WIDTH  = 520;
@@ -18,20 +21,23 @@ interface Props {
 }
 
 export function Sidebar({ trackMapRef }: Props) {
-  const addSessions  = useStore((s) => s.addSessions);
+  const addSessions    = useStore((s) => s.addSessions);
+  const setBoundaries  = useStore((s) => s.setBoundaries);
+  const boundaries     = useStore((s) => s.boundaries);
   const sessions     = useStore((s) => s.sessions);
   const selections   = useStore((s) => s.selections);
+  const activeTab    = useStore((s) => s.activeTab);
   const session      = sessions[0] ?? null;
   const telemetryRef = useRef<TelemetryBarHandle>(null);
-  const [width, setWidth]       = useState(260);
+  const [width, setWidth]         = useState(260);
   const [mapHeight, setMapHeight] = useState(192);
+  const [collapsed, setCollapsed] = useState(false);
 
   // True only when the session has at least one genuine full lap.
   const hasFullLap = useMemo(() => {
     if (!session) return false;
-    const times  = session.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
-    const median = times.length > 0 ? times[Math.floor(times.length / 2)] : Infinity;
-    return times.some((t) => t >= median * 0.5);
+    const cluster = findPaceCluster(session.laps.map((l) => l.lap_time_s));
+    return session.laps.some((l) => isValidLapTime(l.lap_time_s, cluster));
   }, [session]);
 
   // One entry per selected lap (max 2, sorted slower-first so the faster lap
@@ -47,11 +53,9 @@ export function Sidebar({ trackMapRef }: Props) {
         const lIdx  = parseInt(key.substring(colon + 1));
         const sess = sessions[sIdx];
         if (sess) {
-          const lap      = sess.laps[lIdx];
-          const times    = sess.laps.map((l) => l.lap_time_s).filter((t) => t > 0).sort((a, b) => a - b);
-          const median   = times.length > 0 ? times[Math.floor(times.length / 2)] : Infinity;
-          const minFull  = median * 0.5;
-          if (lap && lap.lap_time_s >= minFull) {
+          const lap     = sess.laps[lIdx];
+          const cluster = findPaceCluster(sess.laps.map((l) => l.lap_time_s));
+          if (lap && isValidLapTime(lap.lap_time_s, cluster)) {
             laps.push({ session: sess, lapIdx: lIdx, color: LAP_COLORS[color] });
           }
         }
@@ -68,7 +72,14 @@ export function Sidebar({ trackMapRef }: Props) {
 
   async function handleOpenFiles() {
     const results = await window.electronAPI.openIbtFiles();
-    if (results) addSessions(results);
+    if (results) {
+      addSessions(results);
+      const trackId = results[0]?.meta?.track_id;
+      if (trackId != null) {
+        const b = await window.electronAPI.boundaries.load(trackId);
+        setBoundaries(b as import('../../types/session').TrackBoundaries | null);
+      }
+    }
   }
 
   function handleResizeMouseDown(e: React.MouseEvent) {
@@ -93,19 +104,44 @@ export function Sidebar({ trackMapRef }: Props) {
     window.addEventListener('mouseup',   onMouseUp);
   }
 
+  if (collapsed) {
+    return (
+      <div className="relative shrink-0 w-8 bg-surface border-r border-border flex flex-col items-center pt-2">
+        <button
+          type="button"
+          title="Expand sidebar"
+          className="w-6 h-6 flex items-center justify-center rounded text-muted hover:text-text hover:bg-white/10 transition-colors cursor-pointer"
+          onClick={() => setCollapsed(false)}
+        >
+          <ChevronRightIcon className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="relative shrink-0" style={{ width }}>
       <aside className="w-full h-full bg-surface border-r border-border flex flex-col p-3 overflow-hidden">
-        {/* Open button */}
-        <Button
-          variant="accent"
-          size="sm"
-          onClick={handleOpenFiles}
-          className="w-full mb-3 uppercase tracking-widest"
-        >
-          <ArrowUpTrayIcon className="w-3 h-3" />
-          Open IBT Files
-        </Button>
+        {/* Open button + collapse toggle */}
+        <div className="flex gap-1.5 mb-3">
+          <Button
+            variant="accent"
+            size="sm"
+            onClick={handleOpenFiles}
+            className="flex-1 uppercase tracking-widest"
+          >
+            <ArrowUpTrayIcon className="w-3 h-3" />
+            Open IBT Files
+          </Button>
+          <button
+            type="button"
+            title="Collapse sidebar"
+            className="shrink-0 w-7 flex items-center justify-center rounded text-muted hover:text-text hover:bg-white/10 transition-colors cursor-pointer border border-border"
+            onClick={() => setCollapsed(true)}
+          >
+            <ChevronLeftIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
         {/* Divider */}
         <div className="border-t border-border mb-3" />
@@ -113,11 +149,14 @@ export function Sidebar({ trackMapRef }: Props) {
         {/* Session badges */}
         <SessionList />
 
+        {/* Avg lap time / fuel per lap, excluding pit laps */}
+        <SessionStats />
+
         {/* Lap list — scrollable, takes remaining space */}
         <LapList />
 
-        {/* Track map — pinned to sidebar bottom, only when at least one full lap exists */}
-        {hasFullLap && (
+        {/* Track map — pinned to sidebar bottom, hidden on Driving tab (has its own map) */}
+        {hasFullLap && activeTab !== 'driving' && (
           <>
             <div className="border-t border-border mt-2 mb-1 shrink-0" />
 
@@ -133,7 +172,7 @@ export function Sidebar({ trackMapRef }: Props) {
               className="relative mt-1.5 shrink-0 bg-surface-2 border border-border rounded overflow-hidden"
               style={{ height: mapHeight }}
             >
-              <TrackMap ref={trackMapRef} session={session} trackLaps={trackLaps} telemetryRef={telemetryRef} />
+              <TrackMap ref={trackMapRef} session={session} trackLaps={trackLaps} telemetryRef={telemetryRef} boundaries={boundaries} showMiniMap={false} />
               <div
                 className="absolute top-0 inset-x-0 h-4 z-10 cursor-ns-resize group"
                 onMouseDown={(e) => {

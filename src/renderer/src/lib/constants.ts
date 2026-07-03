@@ -1,23 +1,48 @@
 import type { LapColor } from '../types/session';
 
 // ── Lap comparison colour palette ────────────────────────────────────────────
+// 'ref' and 'blue' are internal slot identifiers (kept for backward-compat with
+// existing selection keys/priority order) — displayed as green/red so a 2-lap
+// comparison (the common case) reads as green = this lap, red = other lap.
 export const LAP_COLORS: Record<LapColor, string> = {
-  ref:  '#ffffff',
-  blue: '#38bdf8',
+  ref:  '#4ade80', // green-400
+  blue: '#f87171', // red-400
   pink: '#e879f9',
   lime: '#a3e635',
 };
 
-/** Rendering priority: ref is always first (the "baseline" lap) */
-export const COLOR_ORDER: LapColor[] = ['ref', 'blue', 'pink', 'lime'];
+/** Human-readable label for the colour swatch UI (LapList tooltips etc.) */
+export const LAP_COLOR_LABELS: Record<LapColor, string> = {
+  ref:  'Green',
+  blue: 'Red',
+  pink: 'Pink',
+  lime: 'Lime',
+};
 
-/** Returns the display color for a lap, substituting white → gray in light mode */
+/**
+ * Selectable slots, in priority order (ref is always the "baseline" lap).
+ * Capped at 2 (green/red) — drives both the swatch UI in LapList and the
+ * max-selection capacity check in useStore's toggleLapColor.
+ */
+export const COLOR_ORDER: LapColor[] = ['ref', 'blue'];
+
+/** Returns the display color for a lap */
 export function getLapColor(color: LapColor): string {
-  if (color === 'ref' && document.documentElement.classList.contains('light')) {
-    return '#71717a';
-  }
   return LAP_COLORS[color];
 }
+
+// ── Driving-tab traces: fixed per-channel colors when only a single lap is
+// selected (channels are visually distinguished by color instead of by lap).
+// Independent of LAP_COLORS — that palette is for lap identity (green/red),
+// this one is for channel identity, so they must not collide semantically.
+export const TRACE_CHANNEL_COLORS: Record<'spd' | 'thr' | 'brk' | 'gear' | 'rpm' | 'str', string> = {
+  spd:  '#38bdf8', // sky-400 ("our blue")
+  thr:  '#4ade80', // green-400
+  brk:  '#f87171', // red-400
+  gear: '#facc15', // yellow-400
+  rpm:  '#fb923c', // orange-400
+  str:  '#38bdf8', // sky-400
+};
 
 // ── Telemetry chart channel definitions ──────────────────────────────────────
 export interface ChartConfig {
